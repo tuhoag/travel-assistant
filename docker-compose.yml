@@ -7,3 +7,7 @@ services:
       - "6334:6334"   # gRPC
     volumes:
       - ./db/qdrant_storage:/qdrant/storage
+
+models:
+  chat:
+    model: hf.co/Qwen/Qwen2.5-3B-Instruct

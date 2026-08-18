@@ -2,10 +2,10 @@ from typing import TypedDict
 
 from langchain_core.documents import Document
 from langchain_qdrant import QdrantVectorStore
-from langgraph.graph import StateGraph, START, END
+from langgraph.graph import END, START, StateGraph
 from qdrant_client import QdrantClient
 
-from config import QDRANT_URL, QDRANT_COLLECTION, get_chat_model, get_encoder
+from config import QDRANT_COLLECTION, QDRANT_URL, get_chat_model, get_encoder
 
 
 class RAGState(TypedDict):

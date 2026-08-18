@@ -9,21 +9,30 @@ load_dotenv()
 
 DATA_DIR = Path(__file__).parent / "data" / "text"
 INDEX_DIR = Path(os.environ.get("QDRANT_INDEX_DIR") or Path(__file__).parent / "db" / "qdrant_storage")
-EMBEDDING_MODEL = os.environ.get("EMBEDDING_MODEL", "BAAI/bge-small-en-v1.5")
-CHAT_MODEL = os.environ.get("CHAT_MODEL", "openai/gpt-oss-120b")
-CHAT_BASE_URL = os.environ.get("CHAT_BASE_URL", "https://api.groq.com/openai/v1")
+EMBEDDING_MODEL = os.environ.get("EMBEDDING_MODEL")
+CHAT_MODEL = os.environ.get("CHAT_MODEL")
+CHAT_BASE_URL = os.environ.get("CHAT_BASE_URL")
 CHAT_API_KEY = os.environ.get("GROQ_API_KEY") or os.environ.get("OPENROUTER_API_KEY")
-QDRANT_URL = os.environ.get("QDRANT_URL", "http://localhost:6333")
-QDRANT_COLLECTION = os.environ.get("QDRANT_COLLECTION", "cities")
+
+QDRANT_URL = os.environ.get("QDRANT_URL")
+QDRANT_COLLECTION = "cities"
 
 
 def get_encoder() -> FastEmbedEmbeddings:
     return FastEmbedEmbeddings(model_name=EMBEDDING_MODEL)
 
-
 def get_chat_model() -> ChatOpenAI:
-    return ChatOpenAI(
-        model=CHAT_MODEL,
-        base_url=CHAT_BASE_URL,
-        api_key=CHAT_API_KEY,
-    )
+    if os.environ.get("ENVIRONMENT") == "dev":
+        return ChatOpenAI(
+            model=CHAT_MODEL,
+            base_url=CHAT_BASE_URL,
+            api_key="not-needed"
+        )
+    elif os.environ.get("ENVIRONMENT") == "prod":
+        return ChatOpenAI(
+            model=CHAT_MODEL,
+            base_url=CHAT_BASE_URL,
+            api_key=CHAT_API_KEY,
+        )
+    else:
+        raise ValueError("Invalid environment. Must be 'dev' or 'prod'.")
