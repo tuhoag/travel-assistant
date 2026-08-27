@@ -1,9 +1,8 @@
 from typing import Any
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
-
 from graph import graph
+from pydantic import BaseModel
 
 router = APIRouter()
 

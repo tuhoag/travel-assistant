@@ -15,8 +15,8 @@ QDRANT_COLLECTION = "cities"
 
 def get_chat_model() -> ChatOpenAI:
     """Build the chat model client for the configured environment."""
-    if os.environ.get("ENVIRONMENT") == "dev":
+    if os.environ.get("ENVIRONMENT") == "development":
         return ChatOpenAI(model=CHAT_MODEL, base_url=CHAT_BASE_URL, api_key="not-needed")
-    elif os.environ.get("ENVIRONMENT") == "prod":
+    elif os.environ.get("ENVIRONMENT") == "production":
         return ChatOpenAI(model=CHAT_MODEL, base_url=CHAT_BASE_URL, api_key=CHAT_API_KEY)
-    raise ValueError("Invalid environment. Must be 'dev' or 'prod'.")
+    raise ValueError("Invalid environment. Must be 'development' or 'production'.")
