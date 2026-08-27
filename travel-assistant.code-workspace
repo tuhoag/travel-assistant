@@ -1,0 +1,10 @@
+{
+  "folders": [
+    { "name": "agent", "path": "agent" },
+    { "name": "front-end", "path": "front-end" }
+  ],
+  "settings": {
+    "python.defaultInterpreterPath": "${workspaceFolder:agent}/.venv/bin/python",
+    "python.analysis.extraPaths": ["${workspaceFolder:agent}/src"]
+  }
+}
