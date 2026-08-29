@@ -11,4 +11,6 @@ wheels/
 
 # Environment variables
 .env
+.env.staging
 db
+.pytest_cache/

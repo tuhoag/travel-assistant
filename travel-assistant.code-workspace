@@ -1,7 +1,8 @@
 {
   "folders": [
     { "name": "agent", "path": "agent" },
-    { "name": "front-end", "path": "front-end" }
+    { "name": "front-end", "path": "front-end" },
+    { "name": "pipelines-prefect", "path": "pipelines-prefect" }
   ],
   "settings": {
     "python.defaultInterpreterPath": "${workspaceFolder:agent}/.venv/bin/python",
