@@ -6,7 +6,7 @@ Canberra is the capital city of Australia, purpose-built as a compromise between
 
 The name Canberra is believed to derive from an Aboriginal word meaning "meeting place," reflecting the area's long history as a gathering site for the Ngunnawal people prior to European settlement. The Griffins' original plan envisioned a garden city built around geometric patterns and sightlines connecting major landmarks, a design still evident in the city's layout today.
 
-Because it was built specifically to serve as the national capital, Canberra lacked much of the infrastructure of an established city in its early decades, and its population grew slowly until after World War II, when the expansion of the federal government accelerated the city's development.
+Because it was built specifically to serve as the national capital, Canberra lacked much of the infrastructure of an established city in its early decades, and its population grew slowly until after World War II, when the expansion of the federal government accelerated the city's dev.
 
 ## Government and Design
 

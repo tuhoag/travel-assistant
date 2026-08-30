@@ -14,12 +14,12 @@ ENV PATH="/app/.venv/bin:$PATH"
 
 EXPOSE 8000
 
-# ---- development: used by docker-compose for local development (hot reload) ----
-FROM base AS development
+# ---- dev: used by docker-compose for local dev (hot reload) ----
+FROM base AS dev
 
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
 
-# ---- production: minimal runtime image (default target — used for deployment) ----
-FROM base AS production
+# ---- prod: minimal runtime image (default target — used for deployment) ----
+FROM base AS prod
 
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

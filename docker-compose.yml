@@ -9,29 +9,36 @@ services:
       - ./db/qdrant_storage:/qdrant/storage
 
   agent:
+    image: tuhoag/travel-assistant-agent:${AGENT_IMAGE_TAG}
     build:
       context: ./agent
-      target: development
+      target: ${AGENT_BUILD_TARGET:-dev}
     ports:
       - "8000:8000"
     volumes:
       - ./agent/main.py:/app/main.py
       - ./agent/src:/app/src
     environment:
-      - ENVIRONMENT=development
+      - CHAT_MODEL_PROVIDER=${CHAT_MODEL_PROVIDER}
       - QDRANT_URL=http://qdrant:6333
-      - EMBEDDING_MODEL=BAAI/bge-small-en-v1.5
-    models:
-      chat:
-        endpoint_var: CHAT_BASE_URL
-        model_var: CHAT_MODEL
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - CHAT_MODEL=${CHAT_MODEL}
+    # models:
+    #   chat:
+    #     endpoint_var: CHAT_BASE_URL
+    #     model_var: CHAT_MODEL
     depends_on:
       - qdrant
 
   front-end:
+    image: tuhoag/travel-assistant-front-end:${FRONT_END_IMAGE_TAG}
     build:
       context: ./front-end
-      target: development
+      target: ${FRONT_END_BUILD_TARGET}
+      args:
+        AGENT_URL: ${AGENT_URL}
     ports:
       - "3000:3000"
     volumes:
@@ -42,9 +49,9 @@ services:
     environment:
       # the browser (on the host), not this container, makes these requests,
       # so this must be a host-reachable address, not the "agent" service DNS name
-      - ENVIRONMENT=development
-      - NEXT_PUBLIC_BACKEND_URL=http://localhost:8000
-      - NEXT_PUBLIC_ASSISTANT_ID=agent
+      - ENVIRONMENT=prod
+      - AGENT_URL=${AGENT_URL}
+      - AGENT_ID=agent
     depends_on:
       - agent
 

@@ -7,6 +7,7 @@ from qdrant_client import QdrantClient
 
 from .config import (
     EMBEDDING_MODEL,
+    QDRANT_API_KEY,
     QDRANT_COLLECTION,
     QDRANT_URL,
     get_chat_model,
@@ -16,7 +17,7 @@ from .state import State
 
 def retrieve_chunks(query: str, k: int = 3) -> list[Document]:
     """Retrieve the top-k most relevant city chunks from Qdrant."""
-    client = QdrantClient(url=QDRANT_URL)
+    client = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY)
     vector_store = QdrantVectorStore(
         client=client,
         collection_name=QDRANT_COLLECTION,
