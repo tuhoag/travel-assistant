@@ -1,7 +1,7 @@
 {
   "folders": [
     { "name": "agent", "path": "agent" },
-    { "name": "front-end", "path": "front-end" },
+    { "name": "frontend", "path": "frontend" },
     { "name": "pipelines-prefect", "path": "pipelines-prefect" }
   ],
   "settings": {

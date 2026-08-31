@@ -1,16 +1,11 @@
-output "all_packages" {
-  value = module.qdrant.all_packages
+output "agent_url" {
+  value = module.agent.url
 }
 
-output "cluster_id" {
-  value = module.qdrant.cluster_id
+output "frontend_url" {
+  value = module.frontend.url
 }
 
-output "url" {
-  value = module.qdrant.url
-}
-
-output "key" {
-  value     = module.qdrant.key
-  sensitive = true
+output "opensearch_endpoint" {
+  value = aws_opensearch_domain.travel_assistant.endpoint
 }
