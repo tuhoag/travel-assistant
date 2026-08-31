@@ -6,6 +6,14 @@ terraform {
       version = ">= 5.0"
     }
   }
+
+  backend "s3" {
+    bucket         = "travel-assistant-tfstate-646095933632"
+    key            = "travel-assistant/terraform.tfstate"
+    region         = "eu-central-1"
+    dynamodb_table = "travel-assistant-tf-lock"
+    encrypt        = true
+  }
 }
 
 provider "aws" {
