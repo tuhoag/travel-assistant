@@ -1,16 +1,19 @@
 """
-Cities to Qdrant ingestion — Prefect version.
+Cities to OpenSearch ingestion — Prefect version.
 
-Reimplements `ingestion/cities_ingest.py`'s logic as four tasks:
-    1. check_qdrant_connection — fail fast if Qdrant isn't reachable
-    2. extract_documents        — parse and chunk the markdown files
-    3. ingest_chunks             — per chunk: skip if already in Qdrant,
-                                    otherwise embed and add it
-    4. report_results            — print added/total
+Reimplements `ingestion/cities_ingest.py`'s logic as five tasks:
+    1. connect            — connect to OpenSearch, raise if unsuccessful
+    2. extract_documents  — parse and chunk the markdown files
+    3. ingest_chunks       — reuses the same connection: per chunk, skip if
+                             already indexed, otherwise embed and add it
+    4. report_results      — print added/total
+    5. disconnect          — close the connection
+
+Auth is AWS SigV4 via the task's/your own IAM credentials (boto3's default
+credential chain) — no API key, matching agent/src/graph/nodes.py's approach.
 
 Runs directly on the host via `uv run`, so unlike the Airflow container it
-talks to `data/text/` and Qdrant at their normal host paths/ports — no volume
-mounts or `host.docker.internal` needed.
+talks to `data/text/` at its normal host path — no volume mounts needed.
 
 Usage:
     uv run flows/cities_ingest_flow.py
@@ -27,38 +30,45 @@ from prefect import flow, task
 from prefect.logging import get_run_logger
 
 # Loads pipelines-prefect/.env if present, without overriding vars already set
-# in the shell — so `QDRANT_URL=... uv run flows/cities_ingest_flow.py` still
-# wins over whatever the .env file has.
+# in the shell.
 load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DATA_DIR = Path(os.environ.get("CITIES_DATA_DIR", REPO_ROOT / "data" / "text"))
-QDRANT_URL = os.environ.get("QDRANT_URL", "http://localhost:6333")
-QDRANT_API_KEY = os.environ.get("QDRANT_API_KEY")  # required once QDRANT_URL is a Qdrant Cloud cluster
-QDRANT_COLLECTION = os.environ.get("QDRANT_COLLECTION", "cities")
+AWS_REGION = os.environ.get("AWS_REGION", "eu-central-1")
+OPENSEARCH_URL = os.environ.get("OPENSEARCH_URL", "https://localhost:9200")
+OPENSEARCH_COLLECTION = os.environ.get("OPENSEARCH_COLLECTION", "cities")
 EMBEDDING_MODEL = os.environ.get("EMBEDDING_MODEL", "BAAI/bge-small-en-v1.5")
 
 
 def chunk_id(document: dict) -> str:
-    """Deterministic id so re-running the flow doesn't create duplicate points."""
+    """Deterministic id so re-running the flow doesn't create duplicates."""
     metadata = document["metadata"]
     return str(uuid.uuid5(uuid.NAMESPACE_DNS, f"{metadata['title']}::{document['page_content']}"))
 
 
 @task(retries=1, retry_delay_seconds=5)
-def check_qdrant_connection() -> bool:
-    """Ping Qdrant before doing any real work."""
-    from qdrant_client import QdrantClient
+def connect():
+    """Connect to OpenSearch and return the client, raising if unsuccessful."""
+    import boto3
+    from opensearchpy import AWSV4SignerAuth, OpenSearch, RequestsHttpConnection
 
     logger = get_run_logger()
-    try:
-        client = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY)
-        client.get_collections()
-        logger.info(f"Connected to Qdrant at {QDRANT_URL}")
-        return True
-    except Exception as exc:
-        logger.error(f"Could not connect to Qdrant at {QDRANT_URL}: {exc}")
-        return False
+    credentials = boto3.Session().get_credentials()
+    http_auth = AWSV4SignerAuth(credentials, AWS_REGION, "es")
+    client = OpenSearch(
+        hosts=[OPENSEARCH_URL],
+        http_auth=http_auth,
+        use_ssl=True,
+        verify_certs=True,
+        connection_class=RequestsHttpConnection,
+    )
+
+    if not client.ping():
+        raise ConnectionError(f"Could not connect to OpenSearch at {OPENSEARCH_URL}")
+
+    logger.info(f"Connected to OpenSearch at {OPENSEARCH_URL}")
+    return client
 
 
 @task(retries=1, retry_delay_seconds=5)
@@ -96,40 +106,48 @@ def extract_documents() -> list[dict]:
 
 
 @task(retries=1, retry_delay_seconds=5)
-def ingest_chunks(documents: list[dict]) -> tuple[int, int]:
-    """For each chunk: skip if it's already in Qdrant, otherwise embed and add it."""
+def ingest_chunks(client, documents: list[dict]) -> tuple[int, int]:
+    """Using the given (already-connected) client: for each chunk, skip if
+    it's already indexed, otherwise embed and add it."""
     from langchain_community.embeddings import FastEmbedEmbeddings
-    from qdrant_client import QdrantClient
-    from qdrant_client.models import Distance, PointStruct, VectorParams
 
     logger = get_run_logger()
-    client = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY)
     embeddings = FastEmbedEmbeddings(model_name=EMBEDDING_MODEL)  # loaded once, reused for every chunk
 
-    if not client.collection_exists(QDRANT_COLLECTION):
+    if not client.indices.exists(index=OPENSEARCH_COLLECTION):
         vector_size = len(embeddings.embed_query("probe"))
-        client.create_collection(
-            collection_name=QDRANT_COLLECTION,
-            vectors_config=VectorParams(size=vector_size, distance=Distance.COSINE),
+        client.indices.create(
+            index=OPENSEARCH_COLLECTION,
+            body={
+                "settings": {"index": {"knn": True}},
+                "mappings": {
+                    "properties": {
+                        "vector": {"type": "knn_vector", "dimension": vector_size},
+                        "page_content": {"type": "text"},
+                        "title": {"type": "keyword"},
+                        "source": {"type": "keyword"},
+                        "embedding_model": {"type": "keyword"},
+                    }
+                },
+            },
         )
 
     added = 0
     for document in documents:
-        point_id = chunk_id(document)
-        already_added = bool(client.retrieve(collection_name=QDRANT_COLLECTION, ids=[point_id]))
+        doc_id = chunk_id(document)
+        already_added = client.exists(index=OPENSEARCH_COLLECTION, id=doc_id)
         if already_added:
             continue
 
         vector = embeddings.embed_query(document["page_content"])
-        client.upsert(
-            collection_name=QDRANT_COLLECTION,
-            points=[
-                PointStruct(
-                    id=point_id,
-                    vector=vector,
-                    payload={"page_content": document["page_content"], **document["metadata"]},
-                )
-            ],
+        client.index(
+            index=OPENSEARCH_COLLECTION,
+            id=doc_id,
+            body={
+                "vector": vector,
+                "page_content": document["page_content"],
+                **document["metadata"],
+            },
         )
         added += 1
 
@@ -142,15 +160,20 @@ def report_results(added: int, total: int) -> None:
     print(f"{added}/{total} chunks added")
 
 
+@task
+def disconnect(client) -> None:
+    client.close()
+
+
 @flow(name="cities-ingest")
 def cities_ingest():
-    connected = check_qdrant_connection()
-    if not connected:
-        raise RuntimeError(f"Aborting: could not connect to Qdrant at {QDRANT_URL}")
+    client = connect()
 
     documents = extract_documents()
-    added, total = ingest_chunks(documents)
+    added, total = ingest_chunks(client, documents)
     report_results(added, total)
+
+    disconnect(client)
 
 
 if __name__ == "__main__":
