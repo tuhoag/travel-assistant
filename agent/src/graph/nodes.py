@@ -1,29 +1,39 @@
 from typing import Any
 
+import boto3
 from langchain_community.embeddings import FastEmbedEmbeddings
+from langchain_community.vectorstores import OpenSearchVectorSearch
 from langchain_core.documents import Document
-from langchain_qdrant import QdrantVectorStore
-from qdrant_client import QdrantClient
+from opensearchpy import AWSV4SignerAuth, RequestsHttpConnection
 
 from .config import (
+    AWS_REGION,
     EMBEDDING_MODEL,
-    QDRANT_API_KEY,
-    QDRANT_COLLECTION,
-    QDRANT_URL,
+    OPENSEARCH_COLLECTION,
+    OPENSEARCH_URL,
     get_chat_model,
 )
 from .state import State
 
 
 def retrieve_chunks(query: str, k: int = 3) -> list[Document]:
-    """Retrieve the top-k most relevant city chunks from Qdrant."""
-    client = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY)
-    vector_store = QdrantVectorStore(
-        client=client,
-        collection_name=QDRANT_COLLECTION,
-        embedding=FastEmbedEmbeddings(model_name=EMBEDDING_MODEL),
+    """Retrieve the top-k most relevant city chunks from OpenSearch."""
+    credentials = boto3.Session().get_credentials()
+    http_auth = AWSV4SignerAuth(credentials, AWS_REGION, "es")
+    vector_store = OpenSearchVectorSearch(
+        opensearch_url=OPENSEARCH_URL,
+        index_name=OPENSEARCH_COLLECTION,
+        embedding_function=FastEmbedEmbeddings(model_name=EMBEDDING_MODEL),
+        http_auth=http_auth,
+        use_ssl=True,
+        verify_certs=True,
+        connection_class=RequestsHttpConnection,
     )
-    return vector_store.similarity_search(query, k=k)
+    # vector_field/text_field are read at query time (not by the constructor
+    # above) and must match the field names the Prefect ingestion pipeline
+    # actually writes: "vector" and "page_content", not the library's own
+    # defaults ("vector_field" / "text").
+    return vector_store.similarity_search(query, k=k, vector_field="vector", text_field="page_content")
 
 
 def retrieve_node(state: State) -> dict[str, Any]:

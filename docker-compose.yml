@@ -1,60 +1,39 @@
 # docker-compose.yml
 services:
-  qdrant:
-    image: qdrant/qdrant:latest
-    ports:
-      - "6333:6333"   # REST API + dashboard
-      - "6334:6334"   # gRPC
-    volumes:
-      - ./db/qdrant_storage:/qdrant/storage
-
   agent:
     image: tuhoag/travel-assistant-agent:${AGENT_IMAGE_TAG}
     build:
       context: ./agent
-      target: ${AGENT_BUILD_TARGET:-dev}
+      target: ${ENVIRONMENT}
     ports:
       - "8000:8000"
     volumes:
       - ./agent/main.py:/app/main.py
       - ./agent/src:/app/src
     environment:
-      - CHAT_MODEL_PROVIDER=${CHAT_MODEL_PROVIDER}
-      - QDRANT_URL=http://qdrant:6333
       - EMBEDDING_MODEL=${EMBEDDING_MODEL}
-      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
-      - GROQ_API_KEY=${GROQ_API_KEY}
       - CHAT_MODEL=${CHAT_MODEL}
-    # models:
-    #   chat:
-    #     endpoint_var: CHAT_BASE_URL
-    #     model_var: CHAT_MODEL
-    depends_on:
-      - qdrant
+      - ENVIRONMENT=${ENVIRONMENT}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - OPENSEARCH_URL=${OPENSEARCH_URL}
+      - OPENSEARCH_COLLECTION=${OPENSEARCH_COLLECTION}
 
-  front-end:
-    image: tuhoag/travel-assistant-front-end:${FRONT_END_IMAGE_TAG}
+  frontend:
+    image: tuhoag/travel-assistant-frontend:${FRONT_END_IMAGE_TAG}
     build:
-      context: ./front-end
-      target: ${FRONT_END_BUILD_TARGET}
-      args:
-        AGENT_URL: ${AGENT_URL}
+      context: ./frontend
+      target: ${ENVIRONMENT}
     ports:
       - "3000:3000"
     volumes:
-      - ./front-end/src:/app/src
-      - ./front-end/public:/app/public
-      - ./front-end/next.config.ts:/app/next.config.ts
-      - ./front-end/tsconfig.json:/app/tsconfig.json
+      - ./frontend/src:/app/src
+      - ./frontend/public:/app/public
+      - ./frontend/next.config.ts:/app/next.config.ts
+      - ./frontend/tsconfig.json:/app/tsconfig.json
     environment:
-      # the browser (on the host), not this container, makes these requests,
-      # so this must be a host-reachable address, not the "agent" service DNS name
-      - ENVIRONMENT=prod
-      - AGENT_URL=${AGENT_URL}
+      - AGENT_URL=${AGENT_URL:-http://agent:8000}
       - AGENT_ID=agent
+      - ENVIRONMENT=${ENVIRONMENT}
     depends_on:
       - agent
-
-models:
-  chat:
-    model: hf.co/Qwen/Qwen2.5-3B-Instruct

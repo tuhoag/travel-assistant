@@ -5,7 +5,7 @@ def test_thread_chat_returns_answer(client):
     """Happy path: a chunk was actually retrieved, and the (mocked) model's
     answer makes it all the way back through graph.invoke() and the route's
     response shaping to the HTTP response. Both retrieve_chunks and
-    get_chat_model are mocked so this never touches real Qdrant or a real
+    get_chat_model are mocked so this never touches real OpenSearch or a real
     LLM — it's checking the route's wiring, not model quality.
     """
     fake_chunk = MagicMock(page_content="Berlin is the capital of Germany.", metadata={})
@@ -79,7 +79,7 @@ def test_thread_chat_serializes_chunks_to_plain_dicts(client):
 def test_thread_chat_rejects_unknown_assistant_id(client):
     """The assistant_id check happens before graph.invoke() is ever called,
     so this needs no mocking at all — a wrong assistant_id should 404
-    without touching Qdrant or the chat model, and it should do so cheaply
+    without touching OpenSearch or the chat model, and it should do so cheaply
     (no wasted graph run) rather than running the pipeline and discarding
     the result.
     """

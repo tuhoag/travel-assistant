@@ -6,7 +6,7 @@ import { ChatInput } from "@/components/ChatInput";
 import { MessageList } from "@/components/MessageList";
 import { Sidebar } from "@/components/Sidebar";
 import { WELCOME_MESSAGE, type ChatMessage, type Conversation } from "@/lib/chat";
-import { backendClient } from "@/lib/backendClient";
+import type { ChatResult } from "@/lib/backendClient";
 
 export function ChatLayout() {
   const [conversations, setConversations] = useState<Conversation[]>([
@@ -41,7 +41,15 @@ export function ChatLayout() {
     );
 
     try {
-      const result = await backendClient.chat(activeConversationId, trimmed);
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ threadId: activeConversationId, query: trimmed }),
+      });
+      if (!res.ok) {
+        throw new Error(`chat request failed: ${res.status}`);
+      }
+      const result: ChatResult = await res.json();
       setMessages((prev) => [
         ...prev,
         { id: crypto.randomUUID(), role: "assistant", content: result.answer ?? "No response from agent." },

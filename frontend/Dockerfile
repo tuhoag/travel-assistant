@@ -20,15 +20,6 @@ CMD ["pnpm", "dev"]
 # ---- builder: compiles the prod build ----
 FROM deps AS builder
 
-# NEXT_PUBLIC_* vars are inlined into the client bundle at build time, so they
-# must arrive as build ARGs here — setting them only at container runtime (as
-# the dev target's docker-compose environment: block does) has no
-# effect on this stage's output.
-ARG AGENT_URL
-ARG AGENT_ID
-ENV AGENT_URL=$AGENT_URL
-ENV AGENT_ID=$AGENT_ID
-
 COPY . .
 RUN pnpm build
 

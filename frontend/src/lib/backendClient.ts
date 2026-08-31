@@ -7,15 +7,19 @@ export interface ChatResult {
 }
 
 export class BackendClient {
-  private baseUrl: string;
+  private baseUrl: string | undefined;
   private assistantId: string;
 
-  constructor(baseUrl: string = config.backendUrl, assistantId: string = config.assistantId) {
+  constructor(baseUrl: string | undefined, assistantId: string = config.assistantId) {
     this.baseUrl = baseUrl;
     this.assistantId = assistantId;
   }
 
   async chat(threadId: string, query: string): Promise<ChatResult> {
+    if (!this.baseUrl) {
+      throw new Error("AGENT_URL is not set.");
+    }
+
     const res = await fetch(`${this.baseUrl}/threads/${threadId}/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -33,4 +37,4 @@ export class BackendClient {
   }
 }
 
-export const backendClient = new BackendClient();
+export const backendClient = new BackendClient(config.backendUrl, config.assistantId);
