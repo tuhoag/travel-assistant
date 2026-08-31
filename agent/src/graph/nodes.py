@@ -13,6 +13,7 @@ from .config import (
     OPENSEARCH_URL,
     get_chat_model,
 )
+from src.prompt_registry import prompt_registry
 from .state import State
 
 
@@ -45,10 +46,6 @@ def retrieve_node(state: State) -> dict[str, Any]:
 def generate_node(state: State) -> dict[str, Any]:
     """Generate an answer grounded in the retrieved chunks."""
     context = "\n\n".join(chunk.page_content for chunk in state["chunks"])
-    prompt = (
-        "Answer the question using only the context below. "
-        "If the context doesn't contain the answer, say you don't know.\n\n"
-        f"Context:\n{context}\n\nQuestion: {state['query']}"
-    )
-    response = get_chat_model().invoke(prompt)
+    messages = prompt_registry.get("rag").invoke({"context": context, "query": state["query"]})
+    response = get_chat_model().invoke(messages)
     return {"answer": response.content}

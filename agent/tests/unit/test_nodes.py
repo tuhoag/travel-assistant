@@ -26,7 +26,7 @@ def test_generate_node_uses_retrieved_context():
     assert result["answer"] == "Berlin is Germany's capital."
 
     # the prompt sent to the model must actually include the retrieved chunk's content
-    prompt_arg = mock_get_chat_model.return_value.invoke.call_args[0][0]
+    prompt_arg = mock_get_chat_model.return_value.invoke.call_args[0][0].to_string()
     assert "Berlin is the capital of Germany." in prompt_arg
     assert "What is Berlin?" in prompt_arg
 
@@ -43,7 +43,7 @@ def test_generate_node_joins_multiple_chunks_into_context():
         generate_node(state)
 
     # a regression guard against only chunks[0] being used
-    prompt_arg = mock_get_chat_model.return_value.invoke.call_args[0][0]
+    prompt_arg = mock_get_chat_model.return_value.invoke.call_args[0][0].to_string()
     assert "Paris is the capital of France." in prompt_arg
     assert "The Eiffel Tower is in Paris." in prompt_arg
 
@@ -56,6 +56,6 @@ def test_generate_node_with_no_chunks():
         result = generate_node(state)
 
     # empty context shouldn't break prompt construction or crash the node
-    prompt_arg = mock_get_chat_model.return_value.invoke.call_args[0][0]
+    prompt_arg = mock_get_chat_model.return_value.invoke.call_args[0][0].to_string()
     assert "What is Atlantis?" in prompt_arg
     assert result["answer"] == "I don't know."
