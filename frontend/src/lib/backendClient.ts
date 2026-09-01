@@ -16,6 +16,7 @@ export class BackendClient {
   }
 
   async chat(threadId: string, query: string): Promise<ChatResult> {
+    console.log(`Call Chat to ${this.baseUrl}`)
     if (!this.baseUrl) {
       throw new Error("AGENT_URL is not set.");
     }

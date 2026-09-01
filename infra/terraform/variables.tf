@@ -16,8 +16,9 @@ variable "agent_image_tag" {
 }
 
 variable "chat_model" {
-  description = "Bedrock model id the agent uses for chat, e.g. \"anthropic.claude-3-5-sonnet-20241022-v2:0\". Note: the account must have model access granted in the Bedrock console for this model — Terraform cannot grant that."
+  description = "Bedrock model id the agent uses for chat. Defaults to the model already in use; the account must have model access granted in the Bedrock console — Terraform cannot grant that."
   type        = string
+  default     = "anthropic.claude-3-5-sonnet-20241022-v2:0"
 }
 
 variable "embedding_model" {

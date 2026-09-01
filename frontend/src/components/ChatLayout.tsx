@@ -8,6 +8,14 @@ import { Sidebar } from "@/components/Sidebar";
 import { WELCOME_MESSAGE, type ChatMessage, type Conversation } from "@/lib/chat";
 import type { ChatResult } from "@/lib/backendClient";
 
+// crypto.randomUUID() only exists in secure contexts (HTTPS or localhost) —
+// this app is served over plain HTTP (no custom domain/ACM cert set up yet),
+// so it's undefined there and throws. These ids are just React keys / thread
+// ids, not security tokens, so a non-crypto generator is fine.
+function generateId(): string {
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+}
+
 export function ChatLayout() {
   const [conversations, setConversations] = useState<Conversation[]>([
     { id: "1", title: "New chat" },
@@ -18,7 +26,7 @@ export function ChatLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   function startNewChat() {
-    const id = crypto.randomUUID();
+    const id = generateId();
     setConversations((prev) => [{ id, title: "New chat" }, ...prev]);
     setActiveConversationId(id);
     setMessages([WELCOME_MESSAGE]);
@@ -28,7 +36,7 @@ export function ChatLayout() {
     const trimmed = text.trim();
     if (!trimmed || isSending) return;
 
-    setMessages((prev) => [...prev, { id: crypto.randomUUID(), role: "user", content: trimmed }]);
+    setMessages((prev) => [...prev, { id: generateId(), role: "user", content: trimmed }]);
     setIsSending(true);
 
     // Give the active conversation a title from the first message.
@@ -46,18 +54,19 @@ export function ChatLayout() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ threadId: activeConversationId, query: trimmed }),
       });
+
       if (!res.ok) {
         throw new Error(`chat request failed: ${res.status}`);
       }
       const result: ChatResult = await res.json();
       setMessages((prev) => [
         ...prev,
-        { id: crypto.randomUUID(), role: "assistant", content: result.answer ?? "No response from agent." },
+        { id: generateId(), role: "assistant", content: result.answer ?? "No response from agent." },
       ]);
     } catch {
       setMessages((prev) => [
         ...prev,
-        { id: crypto.randomUUID(), role: "assistant", content: "Something went wrong. Please try again." },
+        { id: generateId(), role: "assistant", content: "Something went wrong. Please try again." },
       ]);
     } finally {
       setIsSending(false);

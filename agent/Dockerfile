@@ -12,7 +12,7 @@ COPY prompts ./prompts
 RUN uv sync --frozen --no-dev
 
 ENV PATH="/app/.venv/bin:$PATH"
-
+ENV HOSTNAME=0.0.0.0
 EXPOSE 8000
 
 # ---- dev: used by docker-compose for local dev (hot reload) ----
