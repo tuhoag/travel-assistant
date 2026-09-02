@@ -30,6 +30,22 @@ describe("BackendClient.chat", () => {
     expect(result.answer).toBe("Berlin is the capital of Germany.");
   });
 
+  it("passes through hotels when the backend returns them", async () => {
+    const hotels = [{ id: 1, name: "Ritz Paris", city_slug: "paris" }];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ query: "hotels in paris", answer: "Found 1 hotel.", hotels }),
+      }),
+    );
+
+    const client = new BackendClient("http://example.test", "agent");
+    const result = await client.chat("thread-123", "hotels in paris");
+
+    expect(result.hotels).toEqual(hotels);
+  });
+
   it("throws when the response is not ok", async () => {
     vi.stubGlobal(
       "fetch",

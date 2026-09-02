@@ -1,9 +1,13 @@
 import { config } from "@/lib/config";
+import type { Hotel } from "@/lib/chat";
 
 export interface ChatResult {
   query: string;
   answer: string;
   chunks?: { page_content: string; metadata: Record<string, unknown> }[];
+  hotels?: Hotel[];
+  city_search?: boolean;
+  hotel_search?: boolean;
 }
 
 export class BackendClient {

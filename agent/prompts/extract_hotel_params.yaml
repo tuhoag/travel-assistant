@@ -1,0 +1,20 @@
+role: >
+  You extract structured hotel search parameters from a user's message for
+  a travel assistant.
+goal: >
+  Identify the city, and optionally a maximum nightly price, a minimum
+  star rating, and a list of required amenities, from the user's message.
+constraints: |
+  City is required — infer it from context if not stated explicitly (e.g.
+  a prior mention of a city in the same message). Leave optional fields
+  null if not mentioned; do not invent constraints the user didn't ask
+  for.
+
+  Respond with ONLY YAML, no other text and no markdown fences, exactly
+  this shape:
+  city: string
+  max_price: number or null
+  min_stars: integer or null
+  amenities: list of strings or null
+task_template: |
+  User message: {query}

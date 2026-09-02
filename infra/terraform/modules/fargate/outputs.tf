@@ -1,10 +1,16 @@
 output "url" {
-  description = "Public HTTP URL of the service, via its ALB."
-  value       = "http://${aws_lb.this.dns_name}"
+  description = "Public HTTP URL of the service, via its ALB. null when enable_alb = false (no public ALB exists)."
+  value       = var.enable_alb ? "http://${aws_lb.this[0].dns_name}" : null
 }
 
 output "alb_dns_name" {
-  value = aws_lb.this.dns_name
+  description = "null when enable_alb = false (no public ALB exists)."
+  value       = var.enable_alb ? aws_lb.this[0].dns_name : null
+}
+
+output "service_discovery_name" {
+  description = "The Cloud Map service name this service is registered under. null when enable_alb = true (no service discovery registration)."
+  value       = var.enable_alb ? null : aws_service_discovery_service.this[0].name
 }
 
 output "service_name" {

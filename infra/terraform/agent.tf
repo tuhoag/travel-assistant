@@ -24,6 +24,11 @@ module "agent" {
     OPENSEARCH_URL  = "https://${aws_opensearch_domain.travel_assistant.endpoint}"
     CHAT_MODEL      = var.chat_model
     EMBEDDING_MODEL = var.embedding_model
+    # Cloud Map DNS name — deterministic from the service name + namespace,
+    # so this doesn't need to reference module.mcp_hotels's outputs at all
+    # (avoids a module dependency cycle: mcp_hotels's own ingress rule
+    # already depends on module.agent.security_group_id).
+    MCP_HOTELS_URL = "http://travel-assistant-mcp-hotels.${aws_service_discovery_private_dns_namespace.internal.name}:8080/mcp"
   }
 
   task_role_policy_json = data.aws_iam_policy_document.bedrock_invoke.json

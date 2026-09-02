@@ -43,13 +43,13 @@ resource "aws_iam_role" "github_actions_deploy" {
 }
 
 # Necessarily broad — this role runs `terraform apply` for the whole stack
-# (VPC, ECS, ELB, IAM role create/PassRole, OpenSearch, S3/DynamoDB state).
-# Scoped only by the trust policy's `sub` condition above (main-branch
-# pushes to this exact repo, nothing else can assume it).
+# (VPC, ECS, ELB, IAM role create/PassRole, OpenSearch, RDS, Secrets Manager,
+# S3/DynamoDB state). Scoped only by the trust policy's `sub` condition above
+# (main-branch pushes to this exact repo, nothing else can assume it).
 data "aws_iam_policy_document" "github_actions_deploy_permissions" {
   statement {
     effect    = "Allow"
-    actions   = ["ec2:*", "ecs:*", "elasticloadbalancing:*", "es:*", "logs:*", "iam:*", "s3:*", "dynamodb:*"]
+    actions   = ["ec2:*", "ecs:*", "elasticloadbalancing:*", "es:*", "logs:*", "iam:*", "s3:*", "dynamodb:*", "rds:*", "secretsmanager:*", "servicediscovery:*"]
     resources = ["*"]
   }
 }

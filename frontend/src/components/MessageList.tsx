@@ -1,11 +1,19 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { HotelResults } from "@/components/HotelResults";
 import type { ChatMessage } from "@/lib/chat";
 
 interface MessageListProps {
   messages: ChatMessage[];
   isSending: boolean;
+}
+
+function intentLabel(m: ChatMessage): string | null {
+  if (m.citySearch && m.hotelSearch) return "🏙️ City info + 🏨 Hotels";
+  if (m.citySearch) return "🏙️ City info";
+  if (m.hotelSearch) return "🏨 Hotels";
+  return null;
 }
 
 export function MessageList({ messages, isSending }: MessageListProps) {
@@ -17,7 +25,7 @@ export function MessageList({ messages, isSending }: MessageListProps) {
 
   return (
     <div ref={scrollRef} className="flex-1 overflow-y-auto">
-      <div className="mx-auto flex max-w-3xl flex-col gap-6 px-4 py-6">
+      <div className="mx-auto flex max-w-5xl flex-col gap-6 px-4 py-6">
         {messages.map((m) =>
           m.role === "user" ? (
             <div key={m.id} className="flex justify-end">
@@ -30,8 +38,16 @@ export function MessageList({ messages, isSending }: MessageListProps) {
               <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-xs font-semibold text-white">
                 TA
               </div>
-              <div className="whitespace-pre-wrap pt-1 text-[15px] leading-relaxed text-zinc-800 dark:text-zinc-100">
-                {m.content}
+              <div className="flex min-w-0 flex-1 flex-col gap-3">
+                {intentLabel(m) && (
+                  <span className="pt-1 text-xs font-medium text-zinc-400 dark:text-zinc-500">
+                    {intentLabel(m)}
+                  </span>
+                )}
+                <div className="whitespace-pre-wrap text-[15px] leading-relaxed text-zinc-800 dark:text-zinc-100">
+                  {m.content}
+                </div>
+                {m.hotels && m.hotels.length > 0 && <HotelResults hotels={m.hotels} />}
               </div>
             </div>
           ),

@@ -75,3 +75,21 @@ variable "task_role_policy_json" {
   type        = string
   default     = null
 }
+
+variable "enable_alb" {
+  description = "false for an internal-only service (no public ALB, not internet-reachable) — registered in Cloud Map for service discovery instead. true (default) preserves the existing public-ALB behavior."
+  type        = bool
+  default     = true
+}
+
+variable "allowed_security_group_ids" {
+  description = "Security groups allowed to reach the service directly on container_port. Only used when enable_alb = false (when true, ingress is scoped to the ALB's own security group instead)."
+  type        = list(string)
+  default     = []
+}
+
+variable "service_discovery_namespace_id" {
+  description = "Cloud Map private DNS namespace to register the service in. Required when enable_alb = false."
+  type        = string
+  default     = null
+}
