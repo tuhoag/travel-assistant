@@ -14,14 +14,20 @@ resource "aws_security_group" "postgres" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  # Dev-only: lets the Prefect ingestion flow run from a laptop. The MCP
-  # server step will add its own ingress rule (from its security group)
-  # alongside this one, once it exists.
+  # Dev-only: lets the Prefect ingestion flow run from a laptop.
   ingress {
     from_port   = 5432
     to_port     = 5432
     protocol    = "tcp"
     cidr_blocks = [var.dev_ingress_cidr]
+  }
+
+  ingress {
+    description     = "mcp-hotels service"
+    from_port       = 5432
+    to_port         = 5432
+    protocol        = "tcp"
+    security_groups = [module.mcp_hotels.security_group_id]
   }
 }
 

@@ -49,7 +49,7 @@ resource "aws_iam_role" "github_actions_deploy" {
 data "aws_iam_policy_document" "github_actions_deploy_permissions" {
   statement {
     effect    = "Allow"
-    actions   = ["ec2:*", "ecs:*", "elasticloadbalancing:*", "es:*", "logs:*", "iam:*", "s3:*", "dynamodb:*", "rds:*", "secretsmanager:*"]
+    actions   = ["ec2:*", "ecs:*", "elasticloadbalancing:*", "es:*", "logs:*", "iam:*", "s3:*", "dynamodb:*", "rds:*", "secretsmanager:*", "servicediscovery:*"]
     resources = ["*"]
   }
 }

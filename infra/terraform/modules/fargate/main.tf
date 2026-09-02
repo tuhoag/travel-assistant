@@ -1,6 +1,12 @@
 # --- Networking: one ALB per service (see deployment plan for the two-ALB-vs-shared tradeoff) ---
+# All four ALB-related resources below only exist when enable_alb = true
+# (the default, used by agent/frontend). When false (an internal-only
+# service like mcp-hotels), none of these are created — the service is
+# reached via Cloud Map instead, see aws_service_discovery_service.this.
 
 resource "aws_security_group" "alb" {
+  count = var.enable_alb ? 1 : 0
+
   name_prefix = "${var.name}-alb-"
   description = "Allow inbound HTTP from the internet to the ${var.name} ALB"
   vpc_id      = var.vpc_id
@@ -27,15 +33,32 @@ resource "aws_security_group" "alb" {
 
 resource "aws_security_group" "service" {
   name_prefix = "${var.name}-service-"
-  description = "Allow inbound from the ${var.name} ALB only"
+  # description is ForceNew on this resource — kept identical to the
+  # pre-existing text for the enable_alb = true case so this refactor
+  # doesn't force-replace agent/frontend's already-running security groups.
+  description = var.enable_alb ? "Allow inbound from the ${var.name} ALB only" : "Allow inbound to the ${var.name} service from explicitly allowed security groups (internal-only)"
   vpc_id      = var.vpc_id
 
-  ingress {
-    description     = "From ALB only"
-    from_port       = var.container_port
-    to_port         = var.container_port
-    protocol        = "tcp"
-    security_groups = [aws_security_group.alb.id]
+  dynamic "ingress" {
+    for_each = var.enable_alb ? [1] : []
+    content {
+      description     = "From ALB only"
+      from_port       = var.container_port
+      to_port         = var.container_port
+      protocol        = "tcp"
+      security_groups = [aws_security_group.alb[0].id]
+    }
+  }
+
+  dynamic "ingress" {
+    for_each = var.enable_alb ? [] : var.allowed_security_group_ids
+    content {
+      description     = "Internal-only access from an explicitly allowed service"
+      from_port       = var.container_port
+      to_port         = var.container_port
+      protocol        = "tcp"
+      security_groups = [ingress.value]
+    }
   }
 
   egress {
@@ -51,14 +74,18 @@ resource "aws_security_group" "service" {
 }
 
 resource "aws_lb" "this" {
+  count = var.enable_alb ? 1 : 0
+
   name               = "${var.name}-alb"
   internal           = false
   load_balancer_type = "application"
-  security_groups    = [aws_security_group.alb.id]
+  security_groups    = [aws_security_group.alb[0].id]
   subnets            = var.public_subnet_ids
 }
 
 resource "aws_lb_target_group" "this" {
+  count = var.enable_alb ? 1 : 0
+
   name        = "${var.name}-tg"
   port        = var.container_port
   protocol    = "HTTP"
@@ -75,14 +102,36 @@ resource "aws_lb_target_group" "this" {
 }
 
 resource "aws_lb_listener" "this" {
-  load_balancer_arn = aws_lb.this.arn
+  count = var.enable_alb ? 1 : 0
+
+  load_balancer_arn = aws_lb.this[0].arn
   port              = 80
   protocol          = "HTTP"
 
   default_action {
     type             = "forward"
-    target_group_arn = aws_lb_target_group.this.arn
+    target_group_arn = aws_lb_target_group.this[0].arn
   }
+}
+
+# --- Service discovery (internal-only services only) ---
+
+resource "aws_service_discovery_service" "this" {
+  count = var.enable_alb ? 0 : 1
+
+  name = var.name
+
+  dns_config {
+    namespace_id = var.service_discovery_namespace_id
+    dns_records {
+      type = "A"
+      ttl  = 10
+    }
+    routing_policy = "MULTIVALUE"
+  }
+  # No custom health_check_config — ECS registers/deregisters instances
+  # automatically based on task lifecycle, which is enough for a single
+  # internal consumer; there's no ALB target group here to attach one to.
 }
 
 # --- IAM ---
@@ -189,14 +238,27 @@ resource "aws_ecs_service" "this" {
   network_configuration {
     subnets          = var.public_subnet_ids
     security_groups  = [aws_security_group.service.id]
-    assign_public_ip = true # public subnets, no NAT Gateway — see var.public_subnet_ids description
+    assign_public_ip = true # public subnets, no NAT Gateway — see var.public_subnet_ids description; needed for image pulls / AWS API calls regardless of enable_alb
   }
 
-  load_balancer {
-    target_group_arn = aws_lb_target_group.this.arn
-    container_name   = var.name
-    container_port   = var.container_port
+  dynamic "load_balancer" {
+    for_each = var.enable_alb ? [1] : []
+    content {
+      target_group_arn = aws_lb_target_group.this[0].arn
+      container_name   = var.name
+      container_port   = var.container_port
+    }
   }
 
+  dynamic "service_registries" {
+    for_each = var.enable_alb ? [] : [1]
+    content {
+      registry_arn = aws_service_discovery_service.this[0].arn
+    }
+  }
+
+  # Valid even though aws_lb_listener.this has count now: depends_on can
+  # reference a counted resource as a whole, and is simply a no-op when
+  # that resource's count is 0 (the enable_alb = false case).
   depends_on = [aws_lb_listener.this]
 }
