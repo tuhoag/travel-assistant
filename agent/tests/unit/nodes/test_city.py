@@ -63,7 +63,7 @@ def test_generate_city_answer_uses_retrieved_context():
     fake_chunk = MagicMock(page_content="Berlin is the capital of Germany.")
     state = {"query": "What is Berlin?", "chunks": [fake_chunk]}
 
-    with patch("graph.nodes.city.get_chat_model") as mock_get_chat_model:
+    with patch("graph.nodes.structured_output.get_chat_model") as mock_get_chat_model:
         mock_get_chat_model.return_value.ainvoke = AsyncMock(
             return_value=MagicMock(content="Berlin is Germany's capital.")
         )
@@ -83,7 +83,7 @@ def test_generate_city_answer_includes_feedback_on_revision():
         "city_feedback": "Be more specific about the population.",
     }
 
-    with patch("graph.nodes.city.get_chat_model") as mock_get_chat_model:
+    with patch("graph.nodes.structured_output.get_chat_model") as mock_get_chat_model:
         mock_get_chat_model.return_value.ainvoke = AsyncMock(return_value=MagicMock(content="revised answer"))
         run(generate_city_answer(state))
 

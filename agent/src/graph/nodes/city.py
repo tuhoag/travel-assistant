@@ -17,12 +17,11 @@ from ..config import (
     MAX_REVISIONS,
     OPENSEARCH_COLLECTION,
     OPENSEARCH_URL,
-    get_chat_model,
 )
 from ..state import State
 from .schemas import CoverageCheck, Reflection
 from .shared import _feedback_section
-from .structured_output import _structured_call
+from .structured_output import _plain_call, _structured_call
 
 
 def _format_context(chunks: list[Document]) -> str:
@@ -94,8 +93,7 @@ async def generate_city_answer(state: State) -> dict[str, Any]:
         "query": state["query"],
         "feedback_section": _feedback_section(state.get("city_feedback")),
     })
-    response = await get_chat_model().ainvoke(messages)
-    return {"city_answer": response.content}
+    return {"city_answer": await _plain_call(messages)}
 
 
 async def reflect_city_answer(state: State) -> dict[str, Any]:

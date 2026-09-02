@@ -6,12 +6,12 @@ from langgraph.graph import END
 
 from src.prompt_registry import prompt_registry
 
-from ..config import MAX_REVISIONS, get_chat_model
+from ..config import MAX_REVISIONS
 from ..mcp_client import call_search_hotels
 from ..state import HotelParams, State
 from .schemas import HotelSearchParams, Reflection
 from .shared import _feedback_section
-from .structured_output import _structured_call
+from .structured_output import _plain_call, _structured_call
 
 
 def _format_hotel_params(params: HotelParams) -> str:
@@ -55,8 +55,7 @@ async def generate_hotel_answer(state: State) -> dict[str, Any]:
         "hotel_count": len(state["hotels"]),
         "feedback_section": _feedback_section(state.get("hotel_feedback")),
     })
-    response = await get_chat_model().ainvoke(messages)
-    return {"hotel_answer": response.content}
+    return {"hotel_answer": await _plain_call(messages)}
 
 
 async def reflect_hotel_answer(state: State) -> dict[str, Any]:

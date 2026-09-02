@@ -47,7 +47,7 @@ def test_generate_hotel_answer_reports_zero_results():
         "hotels": [],
     }
 
-    with patch("graph.nodes.hotel.get_chat_model") as mock_get_chat_model:
+    with patch("graph.nodes.structured_output.get_chat_model") as mock_get_chat_model:
         mock_get_chat_model.return_value.ainvoke = AsyncMock(
             return_value=MagicMock(content="No hotels found matching your criteria.")
         )
