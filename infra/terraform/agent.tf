@@ -31,5 +31,6 @@ module "agent" {
     MCP_HOTELS_URL = "http://travel-assistant-mcp-hotels.${aws_service_discovery_private_dns_namespace.internal.name}:8080/mcp"
   }
 
-  task_role_policy_json = data.aws_iam_policy_document.bedrock_invoke.json
+  enable_task_role_policy = true
+  task_role_policy_json   = data.aws_iam_policy_document.bedrock_invoke.json
 }

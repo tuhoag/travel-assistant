@@ -179,7 +179,17 @@ resource "aws_iam_role" "task" {
 }
 
 resource "aws_iam_role_policy" "task" {
-  count  = var.task_role_policy_json != null ? 1 : 0
+  # Deliberately not `var.task_role_policy_json != null` — when the JSON
+  # comes from a data source that references an attribute of a resource
+  # with ANY pending in-place update elsewhere in the plan (e.g.
+  # aws_db_instance.hotels under manage_master_user_password, which shows
+  # spurious no-diff "updates"), that reference — and therefore this
+  # null-check — goes unknown at plan time, and Terraform can't resolve a
+  # count from an unknown value ("Invalid count argument"). Whether the
+  # policy exists at all must stay a plain literal the caller sets
+  # explicitly; only the policy's *content* is allowed to be
+  # computed/unknown at plan time.
+  count  = var.enable_task_role_policy ? 1 : 0
   name   = "${var.name}-task-policy"
   role   = aws_iam_role.task.id
   policy = var.task_role_policy_json
