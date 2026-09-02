@@ -16,9 +16,20 @@ variable "agent_image_tag" {
 }
 
 variable "chat_model" {
-  description = "Bedrock model id the agent uses for chat. Defaults to the model already in use; the account must have model access granted in the Bedrock console — Terraform cannot grant that."
+  # Must default to a real, currently-invokable model id: deploy.auto.tfvars
+  # (which held the actual intended value locally) is gitignored, so CI's
+  # terraform apply never sees an override for this var and always falls
+  # back to this default — a stale default here silently breaks the
+  # deployed agent (confirmed live: the previous default,
+  # anthropic.claude-3-5-sonnet-20241022-v2:0, is no longer a valid
+  # foundation-model id in eu-central-1 at all, causing
+  # "ValidationException: The provided model identifier is invalid" on
+  # every chat call). gpt-oss-20b is the cheapest on-demand text model
+  # available in this account's Bedrock catalog (eu-central-1) — good fit
+  # for a demo project.
+  description = "Bedrock model id the agent uses for chat. The account must have model access granted in the Bedrock console — Terraform cannot grant that."
   type        = string
-  default     = "anthropic.claude-3-5-sonnet-20241022-v2:0"
+  default     = "openai.gpt-oss-20b-1:0"
 }
 
 variable "embedding_model" {

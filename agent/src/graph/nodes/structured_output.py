@@ -13,6 +13,22 @@ from pydantic import BaseModel, ValidationError
 from ..config import get_chat_model
 
 
+_HARMONY_REASONING_RE = re.compile(r"\A\s*<reasoning>.*?</reasoning>", re.DOTALL)
+
+
+def _strip_harmony_reasoning(text: str) -> str:
+    """gpt-oss models respond in OpenAI's Harmony format: an analysis
+    (chain-of-thought) channel followed by the final-answer channel. Bedrock
+    renders this as `<reasoning>{analysis}</reasoning>{final, unwrapped}` —
+    confirmed live (langchain_aws's `additional_kwargs["thinking"]` comes
+    back empty for this model; the whole thing lands in `.content` as one
+    string). Anchored to the start rather than searched-and-removed
+    anywhere: Harmony guarantees at most one leading analysis block, so this
+    only ever strips that block, never something resembling it inside the
+    actual answer."""
+    return _HARMONY_REASONING_RE.sub("", text).strip()
+
+
 def _strip_code_fence(text: str) -> str:
     text = text.strip()
     if text.startswith("```"):
@@ -51,6 +67,15 @@ def _extract_fields_by_regex(schema: type[BaseModel], text: str) -> dict[str, An
     return result
 
 
+async def _plain_call(messages) -> str:
+    """Free-text chat call (not structured/YAML) with the same Harmony
+    reasoning-prefix stripping _structured_call's YAML parsing gets —
+    otherwise a model that reasons in Harmony format (e.g. gpt-oss) leaks
+    its chain-of-thought straight into a user-facing answer."""
+    response = await get_chat_model().ainvoke(messages)
+    return _strip_harmony_reasoning(response.content)
+
+
 async def _structured_call(schema: type[BaseModel], messages, _allow_retry: bool = True) -> BaseModel:
     """Ask the model for YAML matching `schema` (the prompt itself carries
     the instruction and shape) and parse+validate the response. Doesn't
@@ -61,7 +86,7 @@ async def _structured_call(schema: type[BaseModel], messages, _allow_retry: bool
     in order: parse as-is, extract fields by anchored regex, then one
     corrective retry that shows the model its own broken response."""
     response = await get_chat_model().ainvoke(messages)
-    content = _strip_code_fence(response.content)
+    content = _strip_code_fence(_strip_harmony_reasoning(response.content))
 
     for candidate in (_try_yaml(content), _extract_fields_by_regex(schema, content)):
         if candidate is None:
