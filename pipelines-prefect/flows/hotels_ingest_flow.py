@@ -36,9 +36,17 @@ from prefect.logging import get_run_logger
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
-# Loads the repo-root .env if present, without overriding vars already set
-# in the shell.
-load_dotenv(REPO_ROOT / ".env")
+# ENVIRONMENT picks .env vs .env.prod, same convention docker-compose uses
+# (target/ENVIRONMENT in docker-compose.yml). This has to be a real env var
+# passed on the command line, not something read from a dotenv file — that
+# would be circular. Deliberately does NOT fall back to merging .env's
+# local-dev PGUSER/PGPASSWORD on top of prod config: running with
+# ENVIRONMENT=prod against the real RDS host previously silently picked up
+# .env's local docker-compose credentials (auth failure, wrong sslmode)
+# because dotenv fills in any var not already set in the process — loading
+# exactly one of the two files avoids that entirely.
+ENVIRONMENT = os.environ.get("ENVIRONMENT", "dev")
+load_dotenv(REPO_ROOT / (".env.prod" if ENVIRONMENT == "prod" else ".env"))
 
 HOTELS_DATA_DIR = Path(os.environ.get("HOTELS_DATA_DIR", REPO_ROOT / "data" / "hotels"))
 SCHEMA_FILE = Path(__file__).resolve().parent / "hotels_schema.sql"
@@ -66,11 +74,17 @@ def connect():
     logger = get_run_logger()
 
     if PGUSER and PGPASSWORD:
-        username, password = PGUSER, PGPASSWORD
+        username, password, sslmode = PGUSER, PGPASSWORD, "prefer"
     elif HOTELS_DB_SECRET_ARN:
         secrets_client = boto3.client("secretsmanager", region_name=AWS_REGION)
         secret = json.loads(secrets_client.get_secret_value(SecretId=HOTELS_DB_SECRET_ARN)["SecretString"])
-        username, password = secret["username"], secret["password"]
+        # RDS rejects unencrypted connections outright — "prefer" isn't
+        # enough here (confirmed live: it fails with a pg_hba-style
+        # rejection rather than falling back to plaintext), so this branch
+        # needs an explicit "require". Local docker-compose Postgres has no
+        # SSL configured at all, hence this only applies to the
+        # Secrets-Manager/real-RDS path, not PGUSER/PGPASSWORD above.
+        username, password, sslmode = secret["username"], secret["password"], "require"
     else:
         raise RuntimeError("Neither PGUSER/PGPASSWORD nor HOTELS_DB_SECRET_ARN is set (see .env)")
 
@@ -80,6 +94,7 @@ def connect():
         dbname=PGDATABASE,
         user=username,
         password=password,
+        sslmode=sslmode,
         connect_timeout=10,
     )
     conn.execute(SCHEMA_FILE.read_text())
