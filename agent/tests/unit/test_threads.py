@@ -1,71 +1,65 @@
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 
-def test_thread_chat_returns_answer(client):
-    """Happy path: a chunk was actually retrieved, and the (mocked) model's
-    answer makes it all the way back through graph.invoke() and the route's
-    response shaping to the HTTP response. Both retrieve_chunks and
-    get_chat_model are mocked so this never touches real OpenSearch or a real
-    LLM — it's checking the route's wiring, not model quality.
+def test_thread_chat_combines_city_and_hotel_answers(client):
+    """Route-level test: mocks the whole graph's ainvoke() rather than every
+    internal node (those are covered individually in test_nodes.py) — this
+    checks the route's own job: assistant_id gating, response assembly, and
+    chunk/hotel serialization.
     """
-    fake_chunk = MagicMock(page_content="Berlin is the capital of Germany.", metadata={})
+    fake_result = {
+        "query": "tell me about Paris and find me a hotel there",
+        "city_answer": "Paris is the capital of France.",
+        "chunks": [type("Doc", (), {"page_content": "Paris info", "metadata": {"source": "paris.md"}})()],
+        "hotel_answer": "Found 1 hotel in Paris.",
+        "hotels": [{"id": 1, "name": "Ritz Paris"}],
+    }
 
-    with (
-        patch("graph.nodes.retrieve_chunks") as mock_retrieve_chunks,
-        patch("graph.nodes.get_chat_model") as mock_get_chat_model,
-    ):
-        mock_retrieve_chunks.return_value = [fake_chunk]
-        mock_get_chat_model.return_value.invoke.return_value.content = "Berlin is the capital of Germany."
+    with patch("src.routes.threads.graph") as mock_graph:
+        mock_graph.ainvoke = AsyncMock(return_value=fake_result)
+        response = client.post(
+            "/threads/abc123/chat",
+            json={"assistant_id": "agent", "input": {"query": "tell me about Paris and find me a hotel there"}},
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["answer"] == "Paris is the capital of France.\n\nFound 1 hotel in Paris."
+    assert body["chunks"] == [{"page_content": "Paris info", "metadata": {"source": "paris.md"}}]
+    assert body["hotels"] == [{"id": 1, "name": "Ritz Paris"}]
+
+
+def test_thread_chat_city_only_omits_hotels_key(client):
+    """When only the city lane ran, the response shouldn't carry a hotels
+    key at all (not an empty list) — the frontend uses its presence to
+    decide whether to render hotel cards."""
+    fake_result = {
+        "query": "what is berlin?",
+        "city_answer": "Berlin is the capital of Germany.",
+        "chunks": [],
+    }
+
+    with patch("src.routes.threads.graph") as mock_graph:
+        mock_graph.ainvoke = AsyncMock(return_value=fake_result)
         response = client.post(
             "/threads/abc123/chat",
             json={"assistant_id": "agent", "input": {"query": "what is berlin?"}},
         )
 
-    assert response.status_code == 200
-    assert response.json()["answer"] == "Berlin is the capital of Germany."
-
-
-def test_thread_chat_with_no_chunks_returns_dont_know(client):
-    """When nothing is retrieved, the wiring should faithfully pass through
-    whatever the model says (here, mocked as "I don't know") rather than
-    fabricating an answer. Whether a *real* model actually follows the
-    "say you don't know" instruction from an empty context is a property of
-    the real LLM, not something a mocked unit test can verify — that's
-    covered by the RAG-correctness checks in evaluate.py / evals/questions.csv
-    and belongs in an integration test, not here.
-    """
-    with (
-        patch("graph.nodes.retrieve_chunks") as mock_retrieve_chunks,
-        patch("graph.nodes.get_chat_model") as mock_get_chat_model,
-    ):
-        mock_retrieve_chunks.return_value = []
-        mock_get_chat_model.return_value.invoke.return_value.content = "I don't know."
-        response = client.post(
-            "/threads/abc123/chat",
-            json={"assistant_id": "agent", "input": {"query": "what is the capital of Atlantis?"}},
-        )
-
-    assert response.status_code == 200
-    assert response.json()["answer"] == "I don't know."
-    assert response.json()["chunks"] == []
+    body = response.json()
+    assert body["answer"] == "Berlin is the capital of Germany."
+    assert "hotels" not in body
 
 
 def test_thread_chat_serializes_chunks_to_plain_dicts(client):
-    """The graph works with Document-like objects (attribute access:
-    c.page_content, c.metadata), but those aren't JSON-serializable as-is.
-    This checks the route's own conversion step (threads.py's dict
-    comprehension) turns them into plain {page_content, metadata} dicts
-    with the exact content preserved, surviving a real HTTP JSON round-trip
-    via response.json() rather than just an in-memory equality check.
-    """
-    fake_chunk = MagicMock(page_content="Berlin is a city.", metadata={"source": "berlin.md"})
+    """Chunks come back as Document-like objects (attribute access:
+    c.page_content, c.metadata), not JSON-serializable as-is — this checks
+    threads.py's own conversion, surviving a real HTTP JSON round-trip."""
+    fake_chunk = type("Doc", (), {"page_content": "Berlin is a city.", "metadata": {"source": "berlin.md"}})()
+    fake_result = {"query": "what is berlin?", "city_answer": "some answer", "chunks": [fake_chunk]}
 
-    with (
-        patch("graph.nodes.retrieve_chunks") as mock_retrieve_chunks,
-        patch("graph.nodes.get_chat_model") as mock_get_chat_model,
-    ):
-        mock_retrieve_chunks.return_value = [fake_chunk]
-        mock_get_chat_model.return_value.invoke.return_value.content = "some answer"
+    with patch("src.routes.threads.graph") as mock_graph:
+        mock_graph.ainvoke = AsyncMock(return_value=fake_result)
         response = client.post(
             "/threads/abc123/chat",
             json={"assistant_id": "agent", "input": {"query": "what is berlin?"}},
@@ -77,12 +71,9 @@ def test_thread_chat_serializes_chunks_to_plain_dicts(client):
 
 
 def test_thread_chat_rejects_unknown_assistant_id(client):
-    """The assistant_id check happens before graph.invoke() is ever called,
-    so this needs no mocking at all — a wrong assistant_id should 404
-    without touching OpenSearch or the chat model, and it should do so cheaply
-    (no wasted graph run) rather than running the pipeline and discarding
-    the result.
-    """
+    """The assistant_id check happens before graph.ainvoke() is ever
+    called, so this needs no mocking at all — a wrong assistant_id should
+    404 without running the graph."""
     response = client.post(
         "/threads/abc123/chat",
         json={"assistant_id": "wrong-agent", "input": {"query": "hi"}},
@@ -91,11 +82,7 @@ def test_thread_chat_rejects_unknown_assistant_id(client):
 
 
 def test_thread_chat_requires_assistant_id_and_input(client):
-    """An empty body fails Pydantic's ThreadChatRequest validation
-    (assistant_id/input have no defaults, so both are required) before
-    FastAPI ever calls thread_chat() — confirms the route's own request
-    schema is doing its job, distinct from the assistant_id logic check
-    above, which happens inside the handler after validation succeeds.
-    """
+    """An empty body fails Pydantic's ThreadChatRequest validation before
+    FastAPI ever calls thread_chat()."""
     response = client.post("/threads/abc123/chat", json={})
     assert response.status_code == 422
