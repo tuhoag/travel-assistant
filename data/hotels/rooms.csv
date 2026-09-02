@@ -1,0 +1,76 @@
+id,hotel_id,room_type,price,currency,availability_count
+1,1,Executive Suite,324.48,CNY,0
+2,1,Single Room,473.0,CNY,4
+3,1,Standard Room,657.55,CNY,4
+4,1,Suite,740.16,CNY,5
+5,2,Deluxe Room,253.52,CNY,0
+6,2,Executive Suite,375.5,CNY,2
+7,2,Suite,507.11,CNY,6
+8,3,Standard Room,289.19,CNY,6
+9,3,Executive Suite,347.84,CNY,2
+10,3,Deluxe Room,481.47,CNY,6
+11,3,Family Room,577.94,CNY,2
+12,4,Family Room,410.06,EUR,6
+13,4,Suite,627.84,EUR,1
+14,4,Deluxe Room,814.24,EUR,6
+15,5,Executive Suite,294.15,EUR,5
+16,5,Family Room,449.25,EUR,2
+17,5,Deluxe Room,598.79,EUR,3
+18,6,Executive Suite,366.91,EUR,3
+19,6,Family Room,573.59,EUR,3
+20,7,Standard Room,410.28,EGP,6
+21,7,Suite,543.9,EGP,6
+22,7,Deluxe Room,701.16,EGP,4
+23,8,Suite,283.5,EGP,4
+24,8,Executive Suite,474.32,EGP,0
+25,9,Suite,398.77,AUD,1
+26,9,Single Room,615.64,AUD,6
+27,10,Suite,323.45,AUD,4
+28,10,Standard Room,422.93,AUD,0
+29,11,Family Room,402.04,GBP,1
+30,11,Deluxe Room,585.96,GBP,6
+31,11,Single Room,699.55,GBP,0
+32,11,Suite,800.97,GBP,3
+33,12,Deluxe Room,300.16,GBP,1
+34,12,Executive Suite,410.68,GBP,2
+35,13,Deluxe Room,352.98,GBP,1
+36,13,Executive Suite,531.74,GBP,0
+37,14,Deluxe Room,333.59,RUB,4
+38,14,Suite,447.13,RUB,0
+39,15,Standard Room,276.36,RUB,1
+40,15,Single Room,366.61,RUB,4
+41,16,Suite,292.72,CAD,2
+42,16,Family Room,392.81,CAD,6
+43,17,Deluxe Room,243.09,CAD,1
+44,17,Suite,345.12,CAD,4
+45,17,Standard Room,467.57,CAD,4
+46,18,Suite,356.33,EUR,6
+47,18,Deluxe Room,477.83,EUR,5
+48,18,Executive Suite,664.68,EUR,2
+49,18,Family Room,749.77,EUR,2
+50,19,Single Room,349.68,EUR,1
+51,19,Standard Room,474.84,EUR,0
+52,20,Single Room,318.72,EUR,6
+53,20,Deluxe Room,381.09,EUR,3
+54,20,Executive Suite,474.02,EUR,5
+55,21,Deluxe Room,325.79,EUR,6
+56,21,Family Room,509.85,EUR,1
+57,22,Single Room,300.04,EUR,2
+58,22,Family Room,365.49,EUR,2
+59,22,Suite,455.82,EUR,4
+60,22,Standard Room,605.77,EUR,5
+61,23,Single Room,443.65,JPY,5
+62,23,Executive Suite,623.21,JPY,1
+63,24,Family Room,294.24,JPY,3
+64,24,Suite,433.45,JPY,1
+65,24,Deluxe Room,550.63,JPY,2
+66,25,Deluxe Room,302.31,JPY,2
+67,25,Single Room,411.47,JPY,5
+68,25,Family Room,539.98,JPY,0
+69,25,Suite,685.65,JPY,6
+70,26,Family Room,417.22,USD,5
+71,26,Executive Suite,598.0,USD,3
+72,27,Single Room,339.13,USD,0
+73,27,Family Room,434.38,USD,6
+74,27,Standard Room,559.42,USD,4
+75,27,Suite,755.79,USD,4

@@ -1,0 +1,28 @@
+id,name,city_slug,address,description,star_rating
+1,The Peninsula Beijing,beijing,"8 Jinyu Hutong, Wangfujing, Dongcheng, Beijing","A landmark luxury hotel in the heart of Beijing, renowned for its elegance and history.",5
+2,Raffles Beijing Hotel,beijing,"33 Dongchang'an Avenue, Dongcheng, Beijing",A storied Beijing institution offering impeccable service and classic sophistication.,5
+3,The St. Regis Beijing,beijing,"21 Jianguomenwai Avenue, Chaoyang, Beijing","A landmark luxury hotel in the heart of Beijing, renowned for its elegance and history.",5
+4,Hotel Adlon Kempinski Berlin,berlin,"Unter den Linden 77, 10117 Berlin","One of Berlin's most celebrated hotels, favored by travelers seeking refined hospitality.",5
+5,Hotel de Rome Berlin,berlin,"Behrenstrasse 37, 10117 Berlin","One of Berlin's most celebrated hotels, favored by travelers seeking refined hospitality.",5
+6,Waldorf Astoria Berlin,berlin,"Hardenbergstrasse 28, 10623 Berlin",A storied Berlin institution offering impeccable service and classic sophistication.,5
+7,Marriott Mena House,cairo,"6 Pyramids Road, Giza, Cairo","One of Cairo's most celebrated hotels, favored by travelers seeking refined hospitality.",5
+8,Sofitel Cairo Nile El Gezirah,cairo,"3 El Thawra Council Street, Zamalek, Cairo","An iconic address in Cairo, blending timeless service with modern comforts.",5
+9,Hotel Realm Canberra,canberra,"18 National Circuit, Barton, Canberra",A storied Canberra institution offering impeccable service and classic sophistication.,5
+10,QT Canberra,canberra,"1 London Circuit, Canberra","An iconic address in Canberra, blending timeless service with modern comforts.",4
+11,The Savoy London,london,"Strand, London WC2R 0EZ","A landmark luxury hotel in the heart of London, renowned for its elegance and history.",5
+12,Claridge's,london,"Brook Street, Mayfair, London W1K 4HR","One of London's most celebrated hotels, favored by travelers seeking refined hospitality.",5
+13,The Ritz London,london,"150 Piccadilly, London W1J 9BR",A storied London institution offering impeccable service and classic sophistication.,5
+14,Hotel National Moscow,moscow,"Mokhovaya Street 15/1, Moscow","An iconic address in Moscow, blending timeless service with modern comforts.",5
+15,Metropol Moscow,moscow,"Teatralny Proyezd 2, Moscow","One of Moscow's most celebrated hotels, favored by travelers seeking refined hospitality.",5
+16,Fairmont Chateau Laurier,ottawa,"1 Rideau Street, Ottawa, ON","An iconic address in Ottawa, blending timeless service with modern comforts.",5
+17,The Westin Ottawa,ottawa,"11 Colonel By Drive, Ottawa, ON","A landmark luxury hotel in the heart of Ottawa, renowned for its elegance and history.",4
+18,Ritz Paris,paris,"15 Place Vendome, 75001 Paris","A landmark luxury hotel in the heart of Paris, renowned for its elegance and history.",5
+19,Hotel Plaza Athenee,paris,"25 Avenue Montaigne, 75008 Paris","An iconic address in Paris, blending timeless service with modern comforts.",5
+20,Le Meurice,paris,"228 Rue de Rivoli, 75001 Paris","One of Paris's most celebrated hotels, favored by travelers seeking refined hospitality.",5
+21,Hotel de Russie Rome,rome,"Via del Babuino 9, 00187 Rome","One of Rome's most celebrated hotels, favored by travelers seeking refined hospitality.",5
+22,Hotel Hassler Roma,rome,"Piazza Trinita dei Monti 6, 00187 Rome","A landmark luxury hotel in the heart of Rome, renowned for its elegance and history.",5
+23,The Peninsula Tokyo,tokyo,"1-8-1 Yurakucho, Chiyoda, Tokyo","One of Tokyo's most celebrated hotels, favored by travelers seeking refined hospitality.",5
+24,Park Hyatt Tokyo,tokyo,"3-7-1-2 Nishi-Shinjuku, Shinjuku, Tokyo","One of Tokyo's most celebrated hotels, favored by travelers seeking refined hospitality.",5
+25,Imperial Hotel Tokyo,tokyo,"1-1-1 Uchisaiwaicho, Chiyoda, Tokyo",A storied Tokyo institution offering impeccable service and classic sophistication.,5
+26,The Hay-Adams,washington_dc,"800 16th Street NW, Washington, DC","An iconic address in Washington Dc, blending timeless service with modern comforts.",5
+27,Willard InterContinental Washington,washington_dc,"1401 Pennsylvania Avenue NW, Washington, DC",A storied Washington Dc institution offering impeccable service and classic sophistication.,5
