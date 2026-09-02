@@ -3,19 +3,24 @@
 # not the execution role, since the app itself calls Secrets Manager
 # rather than ECS injecting the value as a container env var.
 #
-# Deliberately built from aws_db_instance.hotels.resource_id (stable, known
-# as soon as the instance exists) rather than
-# aws_db_instance.hotels.master_user_secret[0].secret_arn: that computed
-# block goes unknown-at-plan-time on applies where the instance has any
-# in-place update pending (a documented quirk of
-# manage_master_user_password), which breaks the count argument on
-# modules/fargate's aws_iam_role_policy.task ("Invalid count argument")
-# every time it happens. The wildcard suffix covers the random suffix
-# Secrets Manager appends to the secret name, which this avoids depending on.
+# Uses the real secret_arn. An earlier version tried to avoid this
+# attribute (it can go unknown-at-plan-time on applies where the instance
+# has any in-place update pending, a documented quirk of
+# manage_master_user_password) by guessing the secret name from
+# aws_db_instance.hotels.resource_id instead — that guess was simply wrong
+# (resource_id is the DbiResourceId, e.g. "db-BMAUWIQ...", which is NOT the
+# identifier RDS actually uses in the managed secret's name, confirmed live:
+# the real secret is "rds!db-41b98297-...", an unrelated internal id), so
+# the resulting policy silently granted access to a secret ARN that didn't
+# exist and every call failed with AccessDeniedException. Safe to reference
+# the real attribute directly now: modules/fargate's aws_iam_role_policy.task
+# count comes from the plain-literal enable_task_role_policy var, not from
+# this value, so this being unknown at plan time on some applies no longer
+# breaks anything — it only ever affected the count, never the policy content.
 data "aws_iam_policy_document" "read_hotels_db_secret" {
   statement {
     actions   = ["secretsmanager:GetSecretValue"]
-    resources = ["arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:rds!db-${aws_db_instance.hotels.resource_id}-*"]
+    resources = [aws_db_instance.hotels.master_user_secret[0].secret_arn]
   }
 }
 
