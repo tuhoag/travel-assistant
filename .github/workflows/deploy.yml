@@ -1,0 +1,121 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: deploy-main
+  cancel-in-progress: false
+
+jobs:
+  test-agent:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.13"
+      - working-directory: agent
+        run: uv sync
+      - working-directory: agent
+        run: uv run pytest
+
+  test-frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+      - working-directory: frontend
+        run: pnpm install --frozen-lockfile
+      - working-directory: frontend
+        run: pnpm lint
+      - working-directory: frontend
+        run: pnpm test
+
+  validate-terraform:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.7.0"
+      # -backend=false: pure syntax/config check, no AWS creds needed —
+      # this job deliberately has no OIDC permissions block at all.
+      - working-directory: infra/terraform
+        run: terraform init -backend=false
+      - working-directory: infra/terraform
+        run: terraform validate
+
+  compute-tag:
+    needs: [test-agent, test-frontend, validate-terraform]
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.vars.outputs.tag }}
+    steps:
+      - id: vars
+        run: echo "tag=stag-$(echo ${{ github.sha }} | cut -c1-7)" >> "$GITHUB_OUTPUT"
+
+  build-agent:
+    needs: compute-tag
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: agent
+          target: prod
+          platforms: linux/amd64
+          push: true
+          tags: tuhoag/travel-assistant-agent:${{ needs.compute-tag.outputs.tag }}
+
+  build-frontend:
+    needs: compute-tag
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: frontend
+          target: prod
+          platforms: linux/amd64
+          push: true
+          tags: tuhoag/travel-assistant-frontend:${{ needs.compute-tag.outputs.tag }}
+
+  deploy:
+    needs: [compute-tag, build-agent, build-frontend]
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: eu-central-1
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.7.0"
+      - working-directory: infra/terraform
+        run: terraform init
+      - working-directory: infra/terraform
+        run: |
+          terraform apply -auto-approve \
+            -var="agent_image_tag=${{ needs.compute-tag.outputs.tag }}" \
+            -var="frontend_image_tag=${{ needs.compute-tag.outputs.tag }}"

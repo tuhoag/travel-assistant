@@ -37,3 +37,14 @@ variable "frontend_image_tag" {
   description = "Tag to deploy, e.g. \"prod-v1.2.3\". No default — every apply must state explicitly which version it's deploying. The agent's URL is wired in at runtime (frontend.tf), not baked in at build time, so this image can be built independently of the agent."
   type        = string
 }
+
+variable "github_owner" {
+  description = "GitHub owner/org for the repo that runs Terraform via GitHub Actions. Used to scope the OIDC trust relationship."
+  type        = string
+}
+
+variable "github_repo" {
+  description = "GitHub repo name that runs Terraform via GitHub Actions. Used to scope the OIDC trust relationship."
+  type        = string
+  default     = "travel-assistant"
+}
