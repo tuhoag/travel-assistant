@@ -38,28 +38,6 @@ variable "frontend_image_tag" {
   type        = string
 }
 
-variable "github_owner" {
-  description = "GitHub owner/org for the repo that runs Terraform via GitHub Actions. Used to scope the OIDC trust relationship."
-  type        = string
-}
-
-variable "github_repo" {
-  description = "GitHub repo name that runs Terraform via GitHub Actions. Used to scope the OIDC trust relationship."
-  type        = string
-  default     = "travel-assistant"
-}
-
-variable "dockerhub_username" {
-  description = "Docker Hub username for the account that owns the agent and frontend images. Used to create GitHub Actions secrets."
-  type        = string
-}
-
-variable "dockerhub_token" {
-  description = "Docker Hub access token for the account that owns the agent and frontend images. Used to create GitHub Actions secrets."
-  type        = string
-  sensitive   = true
-}
-
 variable "mcp_hotels_image_repository" {
   description = "Docker Hub repository for the mcp-hotels image (without a tag)."
   type        = string
