@@ -47,7 +47,12 @@ AWS_REGION = os.environ.get("AWS_REGION", "eu-central-1")
 PGHOST = os.environ.get("PGHOST", "localhost")
 PGPORT = os.environ.get("PGPORT", "5432")
 PGDATABASE = os.environ.get("PGDATABASE", "hotels")
-HOTELS_DB_SECRET_ARN = os.environ.get("HOTELS_DB_SECRET_ARN")  # RDS-managed secret ARN
+# Local dev (docker-compose Postgres): plain credentials, no AWS call.
+PGUSER = os.environ.get("PGUSER")
+PGPASSWORD = os.environ.get("PGPASSWORD")
+# Production (real RDS): PGUSER/PGPASSWORD are unset, credentials are
+# fetched from this Secrets Manager secret instead.
+HOTELS_DB_SECRET_ARN = os.environ.get("HOTELS_DB_SECRET_ARN")
 ASSETS_BUCKET_NAME = os.environ.get("ASSETS_BUCKET_NAME")
 ASSETS_IMAGE_PREFIX = "hotels/images/"
 
@@ -60,18 +65,21 @@ def connect():
 
     logger = get_run_logger()
 
-    if not HOTELS_DB_SECRET_ARN:
-        raise RuntimeError("HOTELS_DB_SECRET_ARN is not set (see .env)")
-
-    secrets_client = boto3.client("secretsmanager", region_name=AWS_REGION)
-    secret = json.loads(secrets_client.get_secret_value(SecretId=HOTELS_DB_SECRET_ARN)["SecretString"])
+    if PGUSER and PGPASSWORD:
+        username, password = PGUSER, PGPASSWORD
+    elif HOTELS_DB_SECRET_ARN:
+        secrets_client = boto3.client("secretsmanager", region_name=AWS_REGION)
+        secret = json.loads(secrets_client.get_secret_value(SecretId=HOTELS_DB_SECRET_ARN)["SecretString"])
+        username, password = secret["username"], secret["password"]
+    else:
+        raise RuntimeError("Neither PGUSER/PGPASSWORD nor HOTELS_DB_SECRET_ARN is set (see .env)")
 
     conn = psycopg.connect(
         host=PGHOST,
         port=PGPORT,
         dbname=PGDATABASE,
-        user=secret["username"],
-        password=secret["password"],
+        user=username,
+        password=password,
         connect_timeout=10,
     )
     conn.execute(SCHEMA_FILE.read_text())

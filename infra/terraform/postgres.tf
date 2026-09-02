@@ -13,8 +13,16 @@ resource "aws_security_group" "postgres" {
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
-  # No ingress yet — added by the MCP server step via aws_security_group_rule,
-  # once the MCP server's own security group exists to reference.
+
+  # Dev-only: lets the Prefect ingestion flow run from a laptop. The MCP
+  # server step will add its own ingress rule (from its security group)
+  # alongside this one, once it exists.
+  ingress {
+    from_port   = 5432
+    to_port     = 5432
+    protocol    = "tcp"
+    cidr_blocks = [var.dev_ingress_cidr]
+  }
 }
 
 resource "aws_db_instance" "hotels" {
@@ -30,7 +38,12 @@ resource "aws_db_instance" "hotels" {
 
   db_subnet_group_name   = aws_db_subnet_group.hotels.name
   vpc_security_group_ids = [aws_security_group.postgres.id]
-  publicly_accessible    = false
+  # true: without a public IP/DNS route, the security group's ingress rule
+  # has nothing to gate — no path can reach the instance at all, from a
+  # laptop or otherwise. Actual access control is the SG rule above (scoped
+  # to var.dev_ingress_cidr) plus the real password in Secrets Manager, not
+  # network placement.
+  publicly_accessible = true
 
   skip_final_snapshot = true # demo project — no need to retain a snapshot on destroy
 }

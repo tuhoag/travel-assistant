@@ -19,6 +19,42 @@ services:
       - OPENSEARCH_URL=${OPENSEARCH_URL}
       - OPENSEARCH_COLLECTION=${OPENSEARCH_COLLECTION}
 
+  postgres:
+    image: postgres:16-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=${PGUSER}
+      - POSTGRES_PASSWORD=${PGPASSWORD}
+      - POSTGRES_DB=${PGDATABASE}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  mcp-hotels:
+    image: tuhoag/travel-assistant-mcp-hotels:${MCP_HOTELS_IMAGE_TAG:-dev}
+    build:
+      context: ./mcp-hotels
+      target: ${ENVIRONMENT}
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./mcp-hotels/src:/app/src
+    environment:
+      - AWS_REGION=${AWS_REGION:-eu-central-1}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      # Always the compose network name, not ${PGHOST} — .env's PGHOST is
+      # for host-run tools (ingestion, bare `uv run`), which is a different
+      # value (localhost) from what a container on this network needs.
+      - PGHOST=postgres
+      - PGPORT=${PGPORT}
+      - PGDATABASE=${PGDATABASE}
+      - PGUSER=${PGUSER}
+      - PGPASSWORD=${PGPASSWORD}
+      - HOTELS_DB_SECRET_ARN=${HOTELS_DB_SECRET_ARN}
+    depends_on:
+      - postgres
+
   frontend:
     image: tuhoag/travel-assistant-frontend:${FRONT_END_IMAGE_TAG}
     build:
@@ -37,3 +73,6 @@ services:
       - ENVIRONMENT=${ENVIRONMENT}
     depends_on:
       - agent
+
+volumes:
+  postgres_data:

@@ -59,3 +59,9 @@ variable "dockerhub_token" {
   type        = string
   sensitive   = true
 }
+
+variable "dev_ingress_cidr" {
+  description = "CIDR allowed to reach the hotels Postgres instance directly (port 5432) — for running the Prefect ingestion flow from a laptop. Defaults to a real value (not null) so CI's terraform apply, which never has deploy.auto.tfvars, doesn't diverge from local applies and destroy this rule on its next deploy. Update if your IP changes."
+  type        = string
+  default     = "95.91.229.28/32"
+}
