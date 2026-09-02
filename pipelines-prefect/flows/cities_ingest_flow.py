@@ -29,11 +29,11 @@ from dotenv import load_dotenv
 from prefect import flow, task
 from prefect.logging import get_run_logger
 
-# Loads pipelines-prefect/.env if present, without overriding vars already set
-# in the shell.
-load_dotenv(Path(__file__).resolve().parents[1] / ".env")
-
 REPO_ROOT = Path(__file__).resolve().parents[2]
+
+# Loads the repo-root .env if present, without overriding vars already set
+# in the shell.
+load_dotenv(REPO_ROOT / ".env")
 DATA_DIR = Path(os.environ.get("CITIES_DATA_DIR", REPO_ROOT / "data" / "text"))
 AWS_REGION = os.environ.get("AWS_REGION", "eu-central-1")
 OPENSEARCH_URL = os.environ.get("OPENSEARCH_URL", "https://localhost:9200")

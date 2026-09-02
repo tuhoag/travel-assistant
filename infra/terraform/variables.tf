@@ -48,3 +48,14 @@ variable "github_repo" {
   type        = string
   default     = "travel-assistant"
 }
+
+variable "dockerhub_username" {
+  description = "Docker Hub username for the account that owns the agent and frontend images. Used to create GitHub Actions secrets."
+  type        = string
+}
+
+variable "dockerhub_token" {
+  description = "Docker Hub access token for the account that owns the agent and frontend images. Used to create GitHub Actions secrets."
+  type        = string
+  sensitive   = true
+}

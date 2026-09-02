@@ -24,7 +24,15 @@ data "aws_iam_policy_document" "github_actions_assume" {
     condition {
       test     = "StringEquals"
       variable = "token.actions.githubusercontent.com:sub"
-      values   = ["repo:tuhoag/travel-assistant:ref:refs/heads/main"]
+      # GitHub includes the immutable owner/repo IDs in the sub claim for any
+      # repo that has ever been renamed (confirmed via CloudTrail: the actual
+      # token presented "repo:tuhoag@6060163/travel-assistant@1337655249:ref:
+      # refs/heads/main", not the plain-name form) — accept both so this
+      # keeps working regardless of which form GitHub sends.
+      values = [
+        "repo:tuhoag/travel-assistant:ref:refs/heads/main",
+        "repo:tuhoag@6060163/travel-assistant@1337655249:ref:refs/heads/main",
+      ]
     }
   }
 }
