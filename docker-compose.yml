@@ -1,9 +1,39 @@
 # docker-compose.yml
 services:
-  qdrant:
-    image: qdrant/qdrant:latest
+  agent:
+    image: tuhoag/travel-assistant-agent:${AGENT_IMAGE_TAG}
+    build:
+      context: ./agent
+      target: ${ENVIRONMENT}
     ports:
-      - "6333:6333"   # REST API + dashboard
-      - "6334:6334"   # gRPC
+      - "8000:8000"
     volumes:
-      - ./db/qdrant_storage:/qdrant/storage
+      - ./agent/main.py:/app/main.py
+      - ./agent/src:/app/src
+    environment:
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL}
+      - CHAT_MODEL=${CHAT_MODEL}
+      - ENVIRONMENT=${ENVIRONMENT}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - OPENSEARCH_URL=${OPENSEARCH_URL}
+      - OPENSEARCH_COLLECTION=${OPENSEARCH_COLLECTION}
+
+  frontend:
+    image: tuhoag/travel-assistant-frontend:${FRONT_END_IMAGE_TAG}
+    build:
+      context: ./frontend
+      target: ${ENVIRONMENT}
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend/src:/app/src
+      - ./frontend/public:/app/public
+      - ./frontend/next.config.ts:/app/next.config.ts
+      - ./frontend/tsconfig.json:/app/tsconfig.json
+    environment:
+      - AGENT_URL=${AGENT_URL:-http://agent:8000}
+      - AGENT_ID=agent
+      - ENVIRONMENT=${ENVIRONMENT}
+    depends_on:
+      - agent
