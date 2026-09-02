@@ -23,6 +23,7 @@ class State(TypedDict, total=False):
 
     # city lane
     chunks: list[Document]
+    city_covered: bool
     city_answer: str
     city_revision_count: int
     city_feedback: str | None

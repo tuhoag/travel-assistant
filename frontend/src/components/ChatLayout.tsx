@@ -61,7 +61,12 @@ export function ChatLayout() {
       const result: ChatResult = await res.json();
       setMessages((prev) => [
         ...prev,
-        { id: generateId(), role: "assistant", content: result.answer ?? "No response from agent." },
+        {
+          id: generateId(),
+          role: "assistant",
+          content: result.answer ?? "No response from agent.",
+          hotels: result.hotels,
+        },
       ]);
     } catch {
       setMessages((prev) => [

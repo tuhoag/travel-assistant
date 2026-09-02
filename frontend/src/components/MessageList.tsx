@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { HotelResults } from "@/components/HotelResults";
 import type { ChatMessage } from "@/lib/chat";
 
 interface MessageListProps {
@@ -30,8 +31,11 @@ export function MessageList({ messages, isSending }: MessageListProps) {
               <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-xs font-semibold text-white">
                 TA
               </div>
-              <div className="whitespace-pre-wrap pt-1 text-[15px] leading-relaxed text-zinc-800 dark:text-zinc-100">
-                {m.content}
+              <div className="flex min-w-0 flex-1 flex-col gap-3">
+                <div className="whitespace-pre-wrap pt-1 text-[15px] leading-relaxed text-zinc-800 dark:text-zinc-100">
+                  {m.content}
+                </div>
+                {m.hotels && m.hotels.length > 0 && <HotelResults hotels={m.hotels} />}
               </div>
             </div>
           ),

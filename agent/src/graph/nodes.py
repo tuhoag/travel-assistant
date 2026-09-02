@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from typing import Any
 
 import boto3
@@ -7,9 +8,10 @@ import yaml
 from langchain_community.embeddings import FastEmbedEmbeddings
 from langchain_community.vectorstores import OpenSearchVectorSearch
 from langchain_core.documents import Document
+from langchain_core.messages import HumanMessage, SystemMessage
 from langgraph.graph import END
 from opensearchpy import AWSV4SignerAuth, RequestsHttpConnection
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 from src.prompt_registry import prompt_registry
 
@@ -42,6 +44,10 @@ class Reflection(BaseModel):
     feedback: str | None = None
 
 
+class CoverageCheck(BaseModel):
+    covered: bool
+
+
 def _strip_code_fence(text: str) -> str:
     text = text.strip()
     if text.startswith("```"):
@@ -52,21 +58,82 @@ def _strip_code_fence(text: str) -> str:
     return text.strip()
 
 
-async def _structured_call(schema: type[BaseModel], messages) -> BaseModel:
+def _try_yaml(text: str) -> Any | None:
+    try:
+        return yaml.safe_load(text)
+    except yaml.YAMLError:
+        return None
+
+
+def _extract_fields_by_regex(schema: type[BaseModel], text: str) -> dict[str, Any]:
+    """Fallback for when the model doesn't respond with clean YAML despite
+    being asked to. Only attempts `bool` fields, via a narrow match bounded
+    to the literal token "true"/"false" — safe regardless of where in the
+    text it appears. Free-text fields are deliberately NOT extracted here:
+    an earlier version matched "<field>: <rest of line>" and either (a)
+    matched a field name appearing as an ordinary word mid-paragraph and
+    captured the whole rest of that paragraph as the "value" (unanchored),
+    or (b) missed a real value entirely when the field name wasn't at the
+    true start of a line, e.g. "...grounded. Correction: passes: true."
+    (anchored). Anything that isn't a plain bool is left for the
+    corrective retry in _structured_call to fix instead of guessed at."""
+    result: dict[str, Any] = {}
+    for field_name, field in schema.model_fields.items():
+        if field.annotation is bool:
+            match = re.search(rf"\b{field_name}\b\s*:?\s*\b(true|false)\b", text, re.IGNORECASE)
+            if match:
+                result[field_name] = match.group(1).lower() == "true"
+    return result
+
+
+async def _structured_call(schema: type[BaseModel], messages, _allow_retry: bool = True) -> BaseModel:
     """Ask the model for YAML matching `schema` (the prompt itself carries
     the instruction and shape) and parse+validate the response. Doesn't
     rely on Bedrock's native structured-output/tool-calling support, which
     not every model has (e.g. Qwen3 via langchain_aws) — YAML-in/YAML-out
-    over a plain chat call works with any model."""
+    over a plain chat call works with any model, though not every model
+    reliably follows the "ONLY YAML" instruction. Three lines of defense,
+    in order: parse as-is, extract fields by anchored regex, then one
+    corrective retry that shows the model its own broken response."""
     response = await get_chat_model().ainvoke(messages)
-    parsed = yaml.safe_load(_strip_code_fence(response.content))
-    return schema.model_validate(parsed)
+    content = _strip_code_fence(response.content)
+
+    for candidate in (_try_yaml(content), _extract_fields_by_regex(schema, content)):
+        if candidate is None:
+            continue
+        try:
+            return schema.model_validate(candidate)
+        except ValidationError:
+            continue
+
+    if not _allow_retry:
+        raise ValueError(f"Could not parse a valid {schema.__name__} from model response: {content!r}")
+
+    correction = [
+        SystemMessage(content="Respond with ONLY YAML, no other text, no markdown fences."),
+        HumanMessage(
+            content=f"Your previous response was not valid YAML:\n\n{content}\n\nRespond again, YAML only."
+        ),
+    ]
+    return await _structured_call(schema, correction, _allow_retry=False)
 
 
 def _feedback_section(feedback: str | None) -> str:
     if not feedback:
         return ""
     return f"\nPrevious attempt's feedback (address this): {feedback}"
+
+
+def _format_context(chunks: list[Document]) -> str:
+    """Labels each chunk with the city it's actually about (from ingestion
+    metadata). Without this, chunks that are ABOUT one city but mention
+    another in passing (e.g. Canberra's article naming Sydney as a rival
+    for the capital) look identical to genuine coverage of that other
+    city — the model has no way to tell "this passage's subject is X" from
+    "this passage merely names X" once the text is flattened together."""
+    return "\n\n".join(
+        f"[Source: {chunk.metadata.get('title', 'unknown')}]\n{chunk.page_content}" for chunk in chunks
+    )
 
 
 def _format_hotel_params(params: HotelParams) -> str:
@@ -115,8 +182,33 @@ async def retrieve_chunks_node(state: State) -> dict[str, Any]:
     return {"chunks": chunks}
 
 
+async def check_city_coverage(state: State) -> dict[str, Any]:
+    """A narrow, focused yes/no check — run before generation, not after —
+    on whether the retrieved sources genuinely cover the asked-about city.
+    Added after generate_city_answer + reflect_city_answer proved
+    unreliable at this specific judgment in production: asking "what is
+    sydney?" retrieved Canberra's article (which names Sydney in passing,
+    as a rival for the capital), and the model answered about Sydney using
+    it anyway — twice in a row, surviving two rounds of reflection feedback
+    each time. Deciding this from the raw source list, before any answer
+    prose exists to rationalize around, is a smaller and more reliable
+    judgment than catching it after the fact."""
+    context = _format_context(state["chunks"])
+    messages = prompt_registry.get("check_city_coverage").invoke({"context": context, "query": state["query"]})
+    coverage = await _structured_call(CoverageCheck, messages)
+    return {"city_covered": coverage.covered}
+
+
+def route_after_retrieve(state: State) -> str:
+    return "generate_city_answer" if state.get("city_covered") else "city_not_found"
+
+
+async def city_not_found(state: State) -> dict[str, Any]:
+    return {"city_answer": "I don't know. I don't have information about that city."}
+
+
 async def generate_city_answer(state: State) -> dict[str, Any]:
-    context = "\n\n".join(chunk.page_content for chunk in state["chunks"])
+    context = _format_context(state["chunks"])
     messages = prompt_registry.get("generate_city").invoke({
         "context": context,
         "query": state["query"],
@@ -127,7 +219,7 @@ async def generate_city_answer(state: State) -> dict[str, Any]:
 
 
 async def reflect_city_answer(state: State) -> dict[str, Any]:
-    context = "\n\n".join(chunk.page_content for chunk in state["chunks"])
+    context = _format_context(state["chunks"])
     messages = prompt_registry.get("reflect_city").invoke({
         "context": context,
         "query": state["query"],

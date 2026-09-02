@@ -10,6 +10,7 @@ services:
     volumes:
       - ./agent/main.py:/app/main.py
       - ./agent/src:/app/src
+      - ./agent/prompts:/app/prompts
     environment:
       - EMBEDDING_MODEL=${EMBEDDING_MODEL}
       - CHAT_MODEL=${CHAT_MODEL}
@@ -18,6 +19,13 @@ services:
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
       - OPENSEARCH_URL=${OPENSEARCH_URL}
       - OPENSEARCH_COLLECTION=${OPENSEARCH_COLLECTION}
+      # Always the compose network name, not ${MCP_HOTELS_URL} — same
+      # reasoning as mcp-hotels's own PGHOST: a container on this network
+      # needs the Docker service name, not whatever a host-run process
+      # would use.
+      - MCP_HOTELS_URL=http://mcp-hotels:8080/mcp
+    depends_on:
+      - mcp-hotels
 
   postgres:
     image: postgres:16-alpine

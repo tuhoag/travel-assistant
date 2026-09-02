@@ -4,11 +4,14 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from langgraph.graph import END
 
 from graph.nodes import (
+    CoverageCheck,
     HotelSearchParams,
     Intent,
     Reflection,
     _strip_code_fence,
     _structured_call,
+    check_city_coverage,
+    city_not_found,
     detect_intent,
     extract_hotel_params,
     generate_city_answer,
@@ -16,6 +19,7 @@ from graph.nodes import (
     reflect_city_answer,
     reflect_hotel_answer,
     retrieve_chunks_node,
+    route_after_retrieve,
     route_city_reflection,
     route_hotel_reflection,
     search_hotels_node,
@@ -49,6 +53,64 @@ def test_structured_call_parses_yaml_response():
     assert result == Reflection(passes=True, feedback=None)
 
 
+def test_structured_call_falls_back_to_regex_for_non_compliant_response():
+    """Regression test for a real production failure: the model ignored the
+    "ONLY YAML" instruction and wrapped the answer in prose, which broke a
+    plain yaml.safe_load (the sentence reads as a second, nested mapping
+    key) — this exact text crashed reflect_city_answer with a
+    yaml.scanner.ScannerError before the regex fallback was added."""
+    broken_text = (
+        "The draft answer correctly states that the context does not contain "
+        "information about Hanoi, which is appropriate and grounded. "
+        "Correction: passes: true."
+    )
+    with patch("graph.nodes.get_chat_model") as mock_get_chat_model:
+        mock_get_chat_model.return_value.ainvoke = AsyncMock(return_value=MagicMock(content=broken_text))
+        result = run(_structured_call(Reflection, "irrelevant messages"))
+
+    assert result == Reflection(passes=True, feedback=None)
+
+
+def test_structured_call_retries_once_when_nothing_extractable():
+    """Regression test for a second real production failure: a response
+    that was pure prose with no line-start match and no bare true/false
+    token near the field name either — nothing for the regex fallback to
+    grab. Rather than crash, one corrective retry is sent showing the
+    model its own broken response; if that comes back clean, it's used."""
+    unparseable = (
+        "The context does not contain any information about Hanoi. The "
+        "draft answer says I don't know which is grounded and correct."
+    )
+    with patch("graph.nodes.get_chat_model") as mock_get_chat_model:
+        mock_get_chat_model.return_value.ainvoke = AsyncMock(
+            side_effect=[
+                MagicMock(content=unparseable),
+                MagicMock(content="passes: true\nfeedback: null"),
+            ]
+        )
+        result = run(_structured_call(Reflection, "irrelevant messages"))
+
+    assert result == Reflection(passes=True, feedback=None)
+    assert mock_get_chat_model.return_value.ainvoke.call_count == 2
+
+
+def test_structured_call_raises_if_retry_also_fails():
+    """No infinite loop: exactly one retry, then a clear error rather than
+    silently fabricating a result or looping forever."""
+    unparseable = "still not valid YAML, still no usable fields anywhere"
+    with patch("graph.nodes.get_chat_model") as mock_get_chat_model:
+        mock_get_chat_model.return_value.ainvoke = AsyncMock(return_value=MagicMock(content=unparseable))
+
+        try:
+            run(_structured_call(Reflection, "irrelevant messages"))
+            raised = False
+        except ValueError:
+            raised = True
+
+    assert raised
+    assert mock_get_chat_model.return_value.ainvoke.call_count == 2
+
+
 # ---- detect_intent ----
 
 
@@ -74,6 +136,34 @@ def test_retrieve_chunks_node_calls_retrieve_chunks_with_query():
 
     mock_retrieve_chunks.assert_called_once_with("What is Paris?")
     assert result == {"chunks": fake_chunks}
+
+
+def test_check_city_coverage_returns_covered_flag():
+    state = {
+        "query": "what is sydney?",
+        "chunks": [MagicMock(page_content="Canberra info", metadata={"title": "Canberra"})],
+    }
+
+    with patch("graph.nodes._structured_call") as mock_call:
+        mock_call.return_value = CoverageCheck(covered=False)
+        result = run(check_city_coverage(state))
+
+    assert result == {"city_covered": False}
+
+
+def test_city_not_found_returns_a_fixed_answer_with_no_llm_call():
+    """Deterministic path — no model call at all, so this can never be
+    talked into hallucinating an answer the way generate_city_answer was."""
+    result = run(city_not_found({}))
+    assert result == {"city_answer": "I don't know. I don't have information about that city."}
+
+
+def test_route_after_retrieve_goes_to_generate_when_covered():
+    assert route_after_retrieve({"city_covered": True}) == "generate_city_answer"
+
+
+def test_route_after_retrieve_goes_to_not_found_when_uncovered():
+    assert route_after_retrieve({"city_covered": False}) == "city_not_found"
 
 
 def test_generate_city_answer_uses_retrieved_context():
