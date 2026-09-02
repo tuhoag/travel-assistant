@@ -2,10 +2,20 @@
 # runtime via boto3 (see mcp-hotels/src/db.py) — needed on the task role,
 # not the execution role, since the app itself calls Secrets Manager
 # rather than ECS injecting the value as a container env var.
+#
+# Deliberately built from aws_db_instance.hotels.resource_id (stable, known
+# as soon as the instance exists) rather than
+# aws_db_instance.hotels.master_user_secret[0].secret_arn: that computed
+# block goes unknown-at-plan-time on applies where the instance has any
+# in-place update pending (a documented quirk of
+# manage_master_user_password), which breaks the count argument on
+# modules/fargate's aws_iam_role_policy.task ("Invalid count argument")
+# every time it happens. The wildcard suffix covers the random suffix
+# Secrets Manager appends to the secret name, which this avoids depending on.
 data "aws_iam_policy_document" "read_hotels_db_secret" {
   statement {
     actions   = ["secretsmanager:GetSecretValue"]
-    resources = [aws_db_instance.hotels.master_user_secret[0].secret_arn]
+    resources = ["arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:rds!db-${aws_db_instance.hotels.resource_id}-*"]
   }
 }
 
