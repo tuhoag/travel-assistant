@@ -23,6 +23,8 @@ export interface ChatMessage {
   role: "user" | "assistant";
   content: string;
   hotels?: Hotel[];
+  citySearch?: boolean;
+  hotelSearch?: boolean;
 }
 
 export interface Conversation {

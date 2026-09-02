@@ -4,6 +4,8 @@ export interface SendChatMessageResult {
   query: string;
   answer: string;
   hotels?: Hotel[];
+  city_search?: boolean;
+  hotel_search?: boolean;
 }
 
 export async function sendChatMessage(threadId: string, query: string): Promise<SendChatMessageResult> {

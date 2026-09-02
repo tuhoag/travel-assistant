@@ -6,6 +6,8 @@ export interface ChatResult {
   answer: string;
   chunks?: { page_content: string; metadata: Record<string, unknown> }[];
   hotels?: Hotel[];
+  city_search?: boolean;
+  hotel_search?: boolean;
 }
 
 export class BackendClient {

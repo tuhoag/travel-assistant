@@ -9,6 +9,8 @@ def test_thread_chat_combines_city_and_hotel_answers(client):
     """
     fake_result = {
         "query": "tell me about Paris and find me a hotel there",
+        "city_search": True,
+        "hotel_search": True,
         "city_answer": "Paris is the capital of France.",
         "chunks": [type("Doc", (), {"page_content": "Paris info", "metadata": {"source": "paris.md"}})()],
         "hotel_answer": "Found 1 hotel in Paris.",
@@ -27,6 +29,26 @@ def test_thread_chat_combines_city_and_hotel_answers(client):
     assert body["answer"] == "Paris is the capital of France.\n\nFound 1 hotel in Paris."
     assert body["chunks"] == [{"page_content": "Paris info", "metadata": {"source": "paris.md"}}]
     assert body["hotels"] == [{"id": 1, "name": "Ritz Paris"}]
+    assert body["city_search"] is True
+    assert body["hotel_search"] is True
+
+
+def test_thread_chat_defaults_intent_flags_to_false_when_absent(client):
+    """A minimal graph result with no city_search/hotel_search keys at all
+    (shouldn't happen in practice, but the route must not KeyError on it)
+    still returns well-formed booleans, not nulls or a missing key."""
+    fake_result = {"query": "hi", "city_answer": "hello"}
+
+    with patch("src.routes.threads.graph") as mock_graph:
+        mock_graph.ainvoke = AsyncMock(return_value=fake_result)
+        response = client.post(
+            "/threads/abc123/chat",
+            json={"assistant_id": "agent", "input": {"query": "hi"}},
+        )
+
+    body = response.json()
+    assert body["city_search"] is False
+    assert body["hotel_search"] is False
 
 
 def test_thread_chat_city_only_omits_hotels_key(client):

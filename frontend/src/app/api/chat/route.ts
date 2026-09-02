@@ -13,6 +13,8 @@ export async function POST(request: NextRequest) {
   return NextResponse.json({
     query: result.query,
     answer: result.answer,
+    city_search: result.city_search,
+    hotel_search: result.hotel_search,
     ...(result.hotels ? { hotels: result.hotels } : {}),
   });
 }

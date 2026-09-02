@@ -35,7 +35,12 @@ async def thread_chat(thread_id: str, request: ThreadChatRequest) -> dict[str, A
     # both, or (in the off-spec case) neither may be present.
     answer = "\n\n".join(part for part in (result.get("city_answer"), result.get("hotel_answer")) if part)
 
-    response: dict[str, Any] = {"query": result["query"], "answer": answer}
+    response: dict[str, Any] = {
+        "query": result["query"],
+        "answer": answer,
+        "city_search": result.get("city_search", False),
+        "hotel_search": result.get("hotel_search", False),
+    }
 
     chunks = result.get("chunks")
     if chunks is not None:

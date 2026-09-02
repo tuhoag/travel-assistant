@@ -57,6 +57,8 @@ export function ChatLayout() {
           role: "assistant",
           content: result.answer ?? "No response from agent.",
           hotels: result.hotels,
+          citySearch: result.city_search,
+          hotelSearch: result.hotel_search,
         },
       ]);
     } catch {
