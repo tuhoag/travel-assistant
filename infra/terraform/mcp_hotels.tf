@@ -44,5 +44,6 @@ module "mcp_hotels" {
     HOTELS_DB_SECRET_ARN = aws_db_instance.hotels.master_user_secret[0].secret_arn
   }
 
-  task_role_policy_json = data.aws_iam_policy_document.read_hotels_db_secret.json
+  enable_task_role_policy = true
+  task_role_policy_json   = data.aws_iam_policy_document.read_hotels_db_secret.json
 }

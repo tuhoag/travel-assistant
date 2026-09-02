@@ -71,9 +71,15 @@ variable "log_retention_days" {
 }
 
 variable "task_role_policy_json" {
-  description = "Optional IAM policy JSON attached to the task role — for permissions the *application code* needs at runtime (e.g. bedrock:InvokeModel, OpenSearch access), as opposed to the execution role, which only pulls the image and reads secrets."
+  description = "Optional IAM policy JSON attached to the task role — for permissions the *application code* needs at runtime (e.g. bedrock:InvokeModel, OpenSearch access), as opposed to the execution role, which only pulls the image and reads secrets. Content only; whether it's attached at all is controlled separately by enable_task_role_policy, since this value may be unknown at plan time (e.g. derived from a data source that references a resource with pending changes) and an unknown value can't drive a resource's count."
   type        = string
   default     = null
+}
+
+variable "enable_task_role_policy" {
+  description = "Whether to attach task_role_policy_json to the task role. Must be a literal true/false set by the caller — never derived from a resource attribute, which could be unknown at plan time and break the count argument this drives."
+  type        = bool
+  default     = false
 }
 
 variable "enable_alb" {
