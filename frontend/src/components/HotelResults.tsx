@@ -5,12 +5,14 @@ interface HotelResultsProps {
   hotels: Hotel[];
 }
 
+const MAX_HOTELS_SHOWN = 10;
+
 export function HotelResults({ hotels }: HotelResultsProps) {
   if (hotels.length === 0) return null;
 
   return (
-    <div className="flex gap-3 overflow-x-auto pb-2">
-      {hotels.map((hotel) => (
+    <div className="flex flex-wrap gap-3">
+      {hotels.slice(0, MAX_HOTELS_SHOWN).map((hotel) => (
         <HotelCard key={hotel.id} hotel={hotel} />
       ))}
     </div>

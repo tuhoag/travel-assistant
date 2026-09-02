@@ -6,7 +6,7 @@ import { ChatInput } from "@/components/ChatInput";
 import { MessageList } from "@/components/MessageList";
 import { Sidebar } from "@/components/Sidebar";
 import { WELCOME_MESSAGE, type ChatMessage, type Conversation } from "@/lib/chat";
-import type { ChatResult } from "@/lib/backendClient";
+import { sendChatMessage } from "@/lib/chatClient";
 
 // crypto.randomUUID() only exists in secure contexts (HTTPS or localhost) —
 // this app is served over plain HTTP (no custom domain/ACM cert set up yet),
@@ -49,16 +49,7 @@ export function ChatLayout() {
     );
 
     try {
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ threadId: activeConversationId, query: trimmed }),
-      });
-
-      if (!res.ok) {
-        throw new Error(`chat request failed: ${res.status}`);
-      }
-      const result: ChatResult = await res.json();
+      const result = await sendChatMessage(activeConversationId, trimmed);
       setMessages((prev) => [
         ...prev,
         {
